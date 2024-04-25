@@ -1,0 +1,33 @@
+{
+  "name": "firehose-to-loki",
+  "version": "1.0.0",
+  "main": "app.js",
+  "author": "Bossett <bossettg@bossett.io>",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@atproto/api": "^0.11.2",
+    "@atproto/identity": "^0.3.3",
+    "@atproto/lexicon": "^0.3.3",
+    "@atproto/repo": "^0.3.9",
+    "@atproto/syntax": "^0.2.1",
+    "@atproto/xrpc-server": "^0.4.4",
+    "@types/express": "^4.17.17",
+    "cbor-x": "^1.5.8",
+    "denque": "^2.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "multiformats": "9.9.0",
+    "winston": "^3.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.28",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.2"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node --gc_interval=5000 --expose-gc ./dist/app.js",
+    "dev": "tsx src/app.ts"
+  }
+}
