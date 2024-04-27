@@ -25,6 +25,7 @@ export default async function firehoseWatcher() {
   const interval_ms = 180000
 
   const interval = async () => {
+    wait(15000)
     do {
       const speed = (seq - old_seq) / (interval_ms / 1000)
       logger.info(
