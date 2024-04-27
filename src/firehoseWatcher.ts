@@ -17,14 +17,14 @@ export default async function firehoseWatcher() {
 
   let old_seq: number = seq
 
-  /*const watched_dids = new Set<string>(
+  const watched_dids = new Set<string>(
     (
       await db.query.new_handles.findMany({
         where: isNull(schema.new_handles.unixtimeoffirstpost),
-        columns: {did: true}
+        columns: { did: true },
       })
     ).map((row) => row.did),
-  )*/
+  )
 
   let lag = 0
   const interval_ms = 180000
@@ -103,7 +103,7 @@ export default async function firehoseWatcher() {
               ) {
                 if (prev_handle === undefined || prev_handle !== handle) {
                   await insertOrUpdateHandle(did, handle, unixtimeofchange)
-                  // watched_dids.add(did)
+                  watched_dids.add(did)
                 }
               }
             }
@@ -114,14 +114,18 @@ export default async function firehoseWatcher() {
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
           commit.record['$type'] === 'app.bsky.feed.post'
         ) {
-          const isWatched = // watched_dids.has(commit.meta['repo'])
+          const isWatched = watched_dids.has(commit.meta['repo'])
+
+          /*
+          const isWatched =
             (await db.query.new_handles.findFirst({
               where: and(
-                eq(schema.new_handles.did, commit.meta['repo']),
                 isNull(schema.new_handles.unixtimeoffirstpost),
+                eq(schema.new_handles.did, commit.meta['repo']),
               ),
               columns: { did: true },
-            })) !== undefined
+            })) !== undefined 
+          */
 
           if (isWatched) {
             logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
@@ -141,7 +145,7 @@ export default async function firehoseWatcher() {
                 comment: `New handle: ${commit.meta['repo']} first post (${commit.atURL})`,
               })
 
-              // watched_dids.delete(commit.meta['repo'])
+              watched_dids.delete(commit.meta['repo'])
             })
           }
         }
