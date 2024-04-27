@@ -92,9 +92,16 @@ export default async function firehoseWatcher() {
             )
 
             if (handle !== undefined) {
-              if (prev_handle === undefined || prev_handle !== handle) {
-                await insertOrUpdateHandle(did, handle, unixtimeofchange)
-                watched_dids.add(did)
+              if (
+                Math.abs(
+                  new Date(commit.meta['time']).getTime() / 1000 -
+                    unixtimeofchange,
+                ) <= 60
+              ) {
+                if (prev_handle === undefined || prev_handle !== handle) {
+                  await insertOrUpdateHandle(did, handle, unixtimeofchange)
+                  watched_dids.add(did)
+                }
               }
             }
           }
