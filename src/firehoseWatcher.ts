@@ -34,9 +34,9 @@ export default async function firehoseWatcher() {
     do {
       const speed = (seq - old_seq) / (interval_ms / 1000)
       logger.info(
-        `at seq: ${seq} with lag ${formatDuration(lag)} (${speed.toFixed(
-          2,
-        )}ops/s)`,
+        `watching ${watched_dids.size.toLocaleString()} at seq: ${seq} with lag ${formatDuration(
+          lag,
+        )} (${speed.toFixed(2)}ops/s)`,
       )
       old_seq = seq
       await db
