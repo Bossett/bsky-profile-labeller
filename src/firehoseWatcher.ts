@@ -1,6 +1,7 @@
 import FirehoseIterable from './lib/firehoseIterable.js'
 import logger from '@/lib/logger.js'
 import wait from '@/lib/wait.js'
+import limit from '@/lib/rateLimit.js'
 
 import db, { schema, eq } from '@/db/db.js'
 
@@ -70,7 +71,7 @@ export default async function firehoseWatcher() {
           const did = commit.repo || ''
           if (did.startsWith('did:plc:')) {
             const res = (await (
-              await fetch(`https://plc.directory/${did}/log/audit`)
+              await limit(() => fetch(`https://plc.directory/${did}/log/audit`))
             ).json()) as {
               did: string
               createdAt: string
