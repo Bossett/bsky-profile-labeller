@@ -26,7 +26,7 @@ async function insertOrUpdateHandle(
       },
     })
 
-  const time = new Date(unixtimeofchange * 1000)
+  const time = new Date(unixtimeofchange * 1000).toISOString()
   logger.info(`handle change ${handle} from ${did} at ${time}`)
 }
 
@@ -78,13 +78,18 @@ export default async function firehoseWatcher() {
               operation: { alsoKnownAs: string[] }
             }[]
 
-            const handle = res[0].operation.alsoKnownAs[0].split('at://')[1]
+            const handle = res
+              ?.at(-1)
+              ?.operation?.alsoKnownAs[0]?.split('at://')[1]
 
             const unixtimeofchange = Math.floor(
-              new Date(res[0].createdAt).getTime() / 1000,
+              new Date(res[0]?.createdAt).getTime() / 1000,
             )
 
-            if (unixtimeofchange > Date.now() / 1000 - 300) {
+            if (
+              unixtimeofchange > Date.now() / 1000 - 300 &&
+              handle !== undefined
+            ) {
               await insertOrUpdateHandle(did, handle, unixtimeofchange)
             }
 
