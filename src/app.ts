@@ -1,26 +1,13 @@
-import FirehoseIterable from './firehoseIterable.js'
-import logger from './logger.js'
+import firehoseWatcher from '@/firehoseWatcher.js'
+import labelEmitter from '@/labelEmitter.js'
+import scheduler from '@/scheduler.js'
 
-const firehose = await new FirehoseIterable().create({})
-const watching_dids: Set<string> = new Set()
+const app: (() => Promise<void>)[] = [
+  async () => {
+    await firehoseWatcher()
+  },
+  async () => labelEmitter(),
+  async () => scheduler(),
+]
 
-for await (const commit of firehose) {
-  switch (commit.meta['$type']) {
-    case 'com.atproto.sync.subscribeRepos#handle':
-      const did = commit.meta['did']
-      const handle = commit.meta['handle']
-      const time = new Date().toISOString()
-      logger.info(`handle change ${handle} from ${did} at ${time}`)
-      watching_dids.add(did)
-      break
-    case 'com.atproto.sync.subscribeRepos#commit':
-      if (commit.record['$type'] === 'app.bsky.feed.post') {
-        if (watching_dids.has(commit.meta['repo'])) {
-          logger.info(
-            `${commit.meta['repo']} first post (${commit.atURL}), emit label`,
-          )
-          watching_dids.delete(commit.meta['repo'])
-        }
-      }
-  }
-}
+await Promise.all(app.map((func) => func()))

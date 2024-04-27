@@ -1,7 +1,7 @@
-import logger from './logger.js'
-import Denque from 'denque'
+import logger from '@/lib/logger.js'
+import wait from '@/lib/wait.js'
 
-import wait from './wait.js'
+import Denque from 'denque'
 
 import { Commit } from '@atproto/api/dist/client/types/com/atproto/sync/subscribeRepos.js'
 import { Subscription } from '@atproto/xrpc-server'
@@ -25,7 +25,7 @@ export default class FirehoseIterable {
     timeout?: number
   } = {}) {
     this.service = service || 'wss://bsky.network'
-    this.timeout = timeout || 3000
+    this.timeout = timeout || 10000
 
     if (seq && Number.isSafeInteger(seq)) this.seq = seq
     else this.seq = 0
@@ -37,7 +37,7 @@ export default class FirehoseIterable {
       method: `com.atproto.sync.subscribeRepos`,
 
       getParams: () => ({
-        cursor: this.seq,
+        cursor: this.seq !== -1 ? this.seq : undefined,
       }),
       validate: (body: any) => body,
     })

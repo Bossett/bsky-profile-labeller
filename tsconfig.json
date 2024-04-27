@@ -11,10 +11,14 @@
     "alwaysStrict": true,
     "allowUnreachableCode": false,
     "strictNullChecks": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["./src/**/*.ts","./src/*.ts"],
   "exclude": [
     "node_modules"
-  ]
+  ],
 }

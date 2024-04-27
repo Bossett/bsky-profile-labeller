@@ -1,33 +1,42 @@
 {
-  "name": "firehose-to-loki",
+  "name": "account-labeller",
   "version": "1.0.0",
   "main": "app.js",
   "author": "Bossett <bossettg@bossett.io>",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@atproto/api": "^0.11.2",
-    "@atproto/identity": "^0.3.3",
-    "@atproto/lexicon": "^0.3.3",
-    "@atproto/repo": "^0.3.9",
-    "@atproto/syntax": "^0.2.1",
-    "@atproto/xrpc-server": "^0.4.4",
+    "@atproto/api": "^0.12.7",
+    "@atproto/identity": "^0.4.0",
+    "@atproto/lexicon": "^0.4.0",
+    "@atproto/repo": "^0.4.0",
+    "@atproto/syntax": "^0.3.0",
+    "@atproto/xrpc-server": "^0.5.1",
+    "@neondatabase/serverless": "^0.9.1",
     "@types/express": "^4.17.17",
     "cbor-x": "^1.5.8",
     "denque": "^2.1.0",
     "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.30.9",
     "express": "^4.18.3",
     "multiformats": "9.9.0",
-    "winston": "^3.12.0"
+    "postgres": "^3.4.4",
+    "winston": "^3.12.0",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.28",
+    "drizzle-kit": "^0.20.17",
     "tsx": "^4.7.1",
     "typescript": "^5.4.2"
   },
   "scripts": {
+    "db:generate": "drizzle-kit generate:pg",
+    "db:drop-migrations": "drizzle-kit drop",
+    "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "db:update": "yarn db:generate && yarn db:migrate",
     "build": "tsc",
-    "start": "node --gc_interval=5000 --expose-gc ./dist/app.js",
-    "dev": "tsx src/app.ts"
+    "start": "node --env-file=.env --gc_interval=5000 --expose-gc ./dist/app.js",
+    "dev": "tsx --env-file=.env src/app.ts"
   }
 }
