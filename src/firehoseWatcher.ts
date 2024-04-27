@@ -35,8 +35,11 @@ export default async function firehoseWatcher() {
     with: { unixtimeoffirstpost: null },
   })
 
-  let seq: number =
-    (await db.query.subscription_status.findFirst())?.last_sequence || -1
+  let seq: number | undefined = (await db.query.subscription_status.findFirst())
+    ?.last_sequence
+  if (seq === undefined) {
+    seq = -1
+  }
 
   setInterval(async () => {
     await db
@@ -82,18 +85,20 @@ export default async function firehoseWatcher() {
               ?.at(-1)
               ?.operation?.alsoKnownAs[0]?.split('at://')[1]
 
+            const prev_handle = res
+              ?.at(-2)
+              ?.operation?.alsoKnownAs[0]?.split('at://')[1]
+
             const unixtimeofchange = Math.floor(
               new Date(res[0]?.createdAt).getTime() / 1000,
             )
 
-            if (
-              unixtimeofchange > Date.now() / 1000 - 300 &&
-              handle !== undefined
-            ) {
-              await insertOrUpdateHandle(did, handle, unixtimeofchange)
+            if (handle !== undefined) {
+              if (prev_handle === undefined || prev_handle !== handle) {
+                await insertOrUpdateHandle(did, handle, unixtimeofchange)
+                watching_dids.add(did)
+              }
             }
-
-            watching_dids.add(did)
           }
         }
 
