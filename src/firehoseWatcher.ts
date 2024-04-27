@@ -92,19 +92,6 @@ export default async function firehoseWatcher() {
           }
         }
 
-        if (commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#handle') {
-          const did = commit.meta['did']
-          const handle = commit.meta['handle']
-
-          const unixtimeofchange = Math.floor(
-            new Date(commit.meta['time']).getTime() / 1000,
-          )
-
-          await insertOrUpdateHandle(did, handle, unixtimeofchange)
-
-          watching_dids.add(did)
-        }
-
         if (
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
           commit.record['$type'] === 'app.bsky.feed.post'
