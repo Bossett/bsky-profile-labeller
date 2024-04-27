@@ -39,7 +39,7 @@
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:update": "yarn db:generate && yarn db:migrate",
     "build": "tsc && tsc-alias",
-    "start": "node --gc_interval=5000 --expose-gc ./dist/app.js",
+    "start": "node --gc_interval=500 --expose-gc ./dist/app.js",
     "dev": "tsx --env-file=.env src/app.ts"
   }
 }
