@@ -1,5 +1,6 @@
 import { agent } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
+import logger from '@/lib/logger.js'
 
 export default async function emitAccountReport({
   label,
@@ -31,6 +32,7 @@ export default async function emitAccountReport({
       .withProxy('atproto_labeler', agent.session!.did)
       .api.tools.ozone.moderation.emitEvent(eventInput)
   } catch (e) {
+    logger.warn(`${e} from emitAccountReport`)
     return false
   }
   return true
