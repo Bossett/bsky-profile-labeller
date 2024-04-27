@@ -1,6 +1,7 @@
 dist/
 .env
 .env.secrets
+fly.toml
 
 # Logs
 logs

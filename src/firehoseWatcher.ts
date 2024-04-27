@@ -9,7 +9,23 @@ export default async function firehoseWatcher() {
     with: { unixtimeoffirstpost: null },
   })
 
-  let seq = -1
+  let seq: number =
+    (await db.query.subscription_status.findFirst())?.last_sequence || -1
+
+  setInterval(async () => {
+    await db
+      .insert(schema.subscription_status)
+      .values({
+        id: 1,
+        last_sequence: seq,
+      })
+      .onConflictDoUpdate({
+        target: schema.subscription_status.id,
+        set: {
+          last_sequence: seq,
+        },
+      })
+  }, 300000)
 
   do {
     try {

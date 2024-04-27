@@ -1,5 +1,5 @@
-import wait from '@/lib/wait'
-import logger from '@/lib/logger'
+import wait from '@/lib/wait.js'
+import logger from '@/lib/logger.js'
 
 import emitAccountReport from '@/emitAccountReport.js'
 
@@ -17,7 +17,7 @@ export default async function labelEmitter() {
       logger.info(
         `emitting ${event.action} '${event.label}' for ${event.did}: ${event.comment}`,
       )
-      if (await emitAccountReport(event.label, event.did, event.comment)) {
+      if (await emitAccountReport(event)) {
         await db
           .delete(schema.label_actions)
           .where(eq(schema.label_actions.id, event.id))

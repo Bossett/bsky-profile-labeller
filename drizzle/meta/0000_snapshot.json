@@ -1,5 +1,5 @@
 {
-  "id": "f4b0a3a5-7c49-4da6-9ba7-3abf04af66e4",
+  "id": "fc81eee0-4bbd-43c7-b610-e5fc05196278",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -24,7 +24,7 @@
           "name": "action",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "did": {
           "name": "did",
@@ -98,6 +98,29 @@
           ]
         }
       }
+    },
+    "subscription_status": {
+      "name": "subscription_status",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_sequence": {
+          "name": "last_sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": -1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
     }
   },
   "enums": {},

@@ -1,4 +1,4 @@
-import wait from '@/lib/wait'
+import wait from '@/lib/wait.js'
 import db, { schema, eq, lte } from '@/db/db.js'
 
 export default async function scheduler() {
