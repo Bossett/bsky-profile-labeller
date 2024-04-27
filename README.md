@@ -2,12 +2,6 @@
 
 Listens to the firehose and emits labels based on data inferred from a user's profile.
 
-## TODO
-
-1.  set up connection to atproto (auth, etc.)
-2.  actually emit events
-3.  read profiles (batched? check rate limit) for blanks
-
 ## target labels
 
 - New (counts from first post after event)
