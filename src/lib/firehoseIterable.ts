@@ -48,7 +48,12 @@ export default class FirehoseIterable {
   }
 
   async readFirehose(sub: Subscription) {
+    const delay = Math.max(Math.floor(this.timeout / 10), 100)
     for await (const frame of sub) {
+      while (this.commitQueue.length > 299 && (await wait(delay))) {
+        // prevent memory leak by keeping queue low
+      }
+
       this.commitQueue.push(frame as Commit)
     }
   }

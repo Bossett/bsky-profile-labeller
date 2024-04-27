@@ -11,11 +11,10 @@ const logger = winston.createLogger({
           label: '[firehose-iterable]',
         }),
         winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss',
+          format: 'YYYY-MM-DDTHH:mm:ss',
         }),
         winston.format.printf(
-          (info) =>
-            `${info.label}  ${info.timestamp}  ${info.level} : ${info.message}`,
+          (info) => `${info.timestamp} ${info.level}: ${info.message}`,
         ),
       ),
     }),

@@ -2,70 +2,67 @@ import FirehoseIterable from './lib/firehoseIterable.js'
 import logger from '@/lib/logger.js'
 import wait from '@/lib/wait.js'
 import limit from '@/lib/rateLimit.js'
+import formatDuration from '@/lib/formatDuration.js'
 
-import db, { schema, eq } from '@/db/db.js'
-
-async function insertOrUpdateHandle(
-  did: string,
-  handle: string,
-  unixtimeofchange: number,
-) {
-  await db
-    .insert(schema.new_handles)
-    .values({
-      did: did,
-      handle: handle,
-      unixtimeofchange: unixtimeofchange,
-    })
-    .onConflictDoUpdate({
-      target: schema.new_handles.did,
-      set: {
-        handle: handle,
-        unixtimeofchange: unixtimeofchange,
-        unixtimeoffirstpost: null,
-      },
-    })
-
-  const time = new Date(unixtimeofchange * 1000).toISOString()
-  logger.info(`handle change ${handle} from ${did} at ${time}`)
-}
+import db, { schema, eq, isNull } from '@/db/db.js'
+import insertOrUpdateHandle from '@/lib/insertOrUpdateHandle.js'
 
 export default async function firehoseWatcher() {
-  const watching = await db.query.new_handles.findMany({
-    with: { unixtimeoffirstpost: null },
-  })
-
   let seq: number =
     (await db.query.subscription_status.findFirst())?.last_sequence || 0
 
-  setInterval(async () => {
-    await db
-      .insert(schema.subscription_status)
-      .values({
-        id: 1,
-        last_sequence: seq,
+  let old_seq: number = seq
+
+  const watched_dids = new Set<string>(
+    (
+      await db.query.new_handles.findMany({
+        where: isNull(schema.new_handles.unixtimeoffirstpost),
       })
-      .onConflictDoUpdate({
-        target: schema.subscription_status.id,
-        set: {
+    ).map((row) => row.did),
+  )
+
+  let lag = 0
+  const interval_ms = 180000
+
+  const interval = async () => {
+    do {
+      const speed = (seq - old_seq) / (interval_ms / 1000)
+      logger.info(
+        `watching ${
+          watched_dids.size
+        }, at seq: ${seq} with lag ${formatDuration(lag)} (${speed.toFixed(
+          2,
+        )}/s)`,
+      )
+      old_seq = seq
+      await db
+        .insert(schema.subscription_status)
+        .values({
+          id: 1,
           last_sequence: seq,
-        },
-      })
-  }, 300000)
+        })
+        .onConflictDoUpdate({
+          target: schema.subscription_status.id,
+          set: {
+            last_sequence: seq,
+          },
+        })
+    } while (await wait(interval_ms))
+  }
+
+  interval()
 
   do {
     try {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
-        timeout: 30000,
+        timeout: 60000,
       })
-
-      const watching_dids: Set<string> = new Set()
-      watching.map((x) => watching_dids.add(x.did))
 
       for await (const commit of firehose) {
         if (Number.isSafeInteger(commit.meta['seq'])) {
           seq = commit.meta['seq']
+          lag = Date.now() - new Date(commit.meta['time']).getTime()
         }
 
         if (
@@ -90,13 +87,13 @@ export default async function firehoseWatcher() {
               ?.operation?.alsoKnownAs[0]?.split('at://')[1]
 
             const unixtimeofchange = Math.floor(
-              new Date(res[0]?.createdAt).getTime() / 1000,
+              new Date(`${res?.at(-1)?.createdAt}`).getTime() / 1000,
             )
 
             if (handle !== undefined) {
               if (prev_handle === undefined || prev_handle !== handle) {
                 await insertOrUpdateHandle(did, handle, unixtimeofchange)
-                watching_dids.add(did)
+                watched_dids.add(did)
               }
             }
           }
@@ -106,24 +103,26 @@ export default async function firehoseWatcher() {
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
           commit.record['$type'] === 'app.bsky.feed.post'
         ) {
-          if (watching_dids.has(commit.meta['repo'])) {
+          if (watched_dids.has(commit.meta['repo'])) {
             logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
             const unixtimeoffirstpost = Math.floor(
               new Date(commit.meta['time']).getTime() / 1000,
             )
-            await db
-              .update(schema.new_handles)
-              .set({ unixtimeoffirstpost: unixtimeoffirstpost })
-              .where(eq(schema.new_handles.did, commit.meta['repo']))
+            await db.transaction(async (tx) => {
+              await tx
+                .update(schema.new_handles)
+                .set({ unixtimeoffirstpost: unixtimeoffirstpost })
+                .where(eq(schema.new_handles.did, commit.meta['repo']))
 
-            await db.insert(schema.label_actions).values({
-              label: 'newhandle',
-              action: 'create',
-              did: commit.meta['repo'],
-              comment: `New handle: ${commit.meta['repo']} first post (${commit.atURL})`,
+              await tx.insert(schema.label_actions).values({
+                label: 'newhandle',
+                action: 'create',
+                did: commit.meta['repo'],
+                comment: `New handle: ${commit.meta['repo']} first post (${commit.atURL})`,
+              })
+
+              watched_dids.delete(commit.meta['repo'])
             })
-
-            watching_dids.delete(commit.meta['repo'])
           }
         }
       }
