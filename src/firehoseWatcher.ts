@@ -26,7 +26,7 @@ async function insertOrUpdateHandle(
       },
     })
 
-  const time = new Date().toISOString()
+  const time = new Date(unixtimeofchange * 1000)
   logger.info(`handle change ${handle} from ${did} at ${time}`)
 }
 
