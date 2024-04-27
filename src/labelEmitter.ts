@@ -12,6 +12,13 @@ export default async function labelEmitter() {
         schema.label_actions.unixtimescheduled,
         Math.floor(Date.now() / 1000),
       ),
+      columns: {
+        label: true,
+        did: true,
+        comment: true,
+        id: true,
+        action: true,
+      },
     })
     events.map(async (event) => {
       logger.info(

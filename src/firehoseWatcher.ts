@@ -4,22 +4,27 @@ import wait from '@/lib/wait.js'
 import limit from '@/lib/rateLimit.js'
 import formatDuration from '@/lib/formatDuration.js'
 
-import db, { schema, eq, isNull } from '@/db/db.js'
+import db, { schema, eq, isNull, and } from '@/db/db.js'
 import insertOrUpdateHandle from '@/lib/insertOrUpdateHandle.js'
 
 export default async function firehoseWatcher() {
   let seq: number =
-    (await db.query.subscription_status.findFirst())?.last_sequence || 0
+    (
+      await db.query.subscription_status.findFirst({
+        columns: { last_sequence: true },
+      })
+    )?.last_sequence || 0
 
   let old_seq: number = seq
 
-  const watched_dids = new Set<string>(
+  /*const watched_dids = new Set<string>(
     (
       await db.query.new_handles.findMany({
         where: isNull(schema.new_handles.unixtimeoffirstpost),
+        columns: {did: true}
       })
     ).map((row) => row.did),
-  )
+  )*/
 
   let lag = 0
   const interval_ms = 180000
@@ -29,9 +34,7 @@ export default async function firehoseWatcher() {
     do {
       const speed = (seq - old_seq) / (interval_ms / 1000)
       logger.info(
-        `watching ${
-          watched_dids.size
-        }, at seq: ${seq} with lag ${formatDuration(lag)} (${speed.toFixed(
+        `at seq: ${seq} with lag ${formatDuration(lag)} (${speed.toFixed(
           2,
         )}ops/s)`,
       )
@@ -100,7 +103,7 @@ export default async function firehoseWatcher() {
               ) {
                 if (prev_handle === undefined || prev_handle !== handle) {
                   await insertOrUpdateHandle(did, handle, unixtimeofchange)
-                  watched_dids.add(did)
+                  // watched_dids.add(did)
                 }
               }
             }
@@ -111,7 +114,16 @@ export default async function firehoseWatcher() {
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
           commit.record['$type'] === 'app.bsky.feed.post'
         ) {
-          if (watched_dids.has(commit.meta['repo'])) {
+          const isWatched = // watched_dids.has(commit.meta['repo'])
+            (await db.query.new_handles.findFirst({
+              where: and(
+                eq(schema.new_handles.did, commit.meta['repo']),
+                isNull(schema.new_handles.unixtimeoffirstpost),
+              ),
+              columns: { did: true },
+            })) !== undefined
+
+          if (isWatched) {
             logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
             const unixtimeoffirstpost = Math.floor(
               new Date(commit.meta['time']).getTime() / 1000,
@@ -129,7 +141,7 @@ export default async function firehoseWatcher() {
                 comment: `New handle: ${commit.meta['repo']} first post (${commit.atURL})`,
               })
 
-              watched_dids.delete(commit.meta['repo'])
+              // watched_dids.delete(commit.meta['repo'])
             })
           }
         }
