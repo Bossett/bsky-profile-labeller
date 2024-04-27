@@ -35,11 +35,8 @@ export default async function firehoseWatcher() {
     with: { unixtimeoffirstpost: null },
   })
 
-  let seq: number | undefined = (await db.query.subscription_status.findFirst())
-    ?.last_sequence
-  if (seq === undefined) {
-    seq = -1
-  }
+  let seq: number =
+    (await db.query.subscription_status.findFirst())?.last_sequence || 0
 
   setInterval(async () => {
     await db
@@ -58,7 +55,10 @@ export default async function firehoseWatcher() {
 
   do {
     try {
-      const firehose = await new FirehoseIterable().create({ seq: seq })
+      const firehose = await new FirehoseIterable().create({
+        seq: seq,
+        timeout: 30000,
+      })
 
       const watching_dids: Set<string> = new Set()
       watching.map((x) => watching_dids.add(x.did))
