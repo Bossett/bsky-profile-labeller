@@ -32,7 +32,7 @@ export default async function firehoseWatcher() {
           watched_dids.size
         }, at seq: ${seq} with lag ${formatDuration(lag)} (${speed.toFixed(
           2,
-        )}/s)`,
+        )}ops/s)`,
       )
       old_seq = seq
       await db
