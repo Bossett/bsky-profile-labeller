@@ -1,4 +1,4 @@
-import { agent } from '@/lib/bskyAgent.js'
+import { agent, reauth } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/lib/logger.js'
 
@@ -32,7 +32,8 @@ export default async function emitAccountReport({
       .withProxy('atproto_labeler', agent.session!.did)
       .api.tools.ozone.moderation.emitEvent(eventInput)
   } catch (e) {
-    logger.warn(`${e} from emitAccountReport`)
+    logger.warn(`${e} from emitAccountReport attempting re-auth`)
+    await reauth(agent)
     return false
   }
   return true
