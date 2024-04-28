@@ -5,6 +5,7 @@ export default async function insertOrUpdateHandle(
   did: string,
   handle: string,
   unixtimeofchange: number,
+  label: 'newaccount' | 'newhandle',
 ) {
   await db
     .insert(schema.new_handles)
@@ -12,6 +13,7 @@ export default async function insertOrUpdateHandle(
       did: did,
       handle: handle,
       unixtimeofchange: unixtimeofchange,
+      label: label,
     })
     .onConflictDoUpdate({
       target: schema.new_handles.did,
@@ -19,6 +21,7 @@ export default async function insertOrUpdateHandle(
         handle: handle,
         unixtimeofchange: unixtimeofchange,
         unixtimeoffirstpost: null,
+        label: label,
       },
     })
 

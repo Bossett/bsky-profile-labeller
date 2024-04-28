@@ -107,7 +107,12 @@ export default async function firehoseWatcher() {
                 ) <= 60
               ) {
                 if (prev_handle === undefined || prev_handle !== handle) {
-                  await insertOrUpdateHandle(did, handle, unixtimeofchange)
+                  await insertOrUpdateHandle(
+                    did,
+                    handle,
+                    unixtimeofchange,
+                    prev_handle === undefined ? 'newaccount' : 'newhandle',
+                  )
                   watched_dids.add(did)
                 }
               }
@@ -150,12 +155,31 @@ export default async function firehoseWatcher() {
               .set({ unixtimeoffirstpost: unixtimeoffirstpost })
               .where(eq(schema.new_handles.did, did))
 
+            const label = (
+              await tx.query.new_handles.findFirst({
+                where: eq(schema.new_handles.did, did),
+                columns: { label: true },
+              })
+            )?.label
+
             await tx.insert(schema.label_actions).values({
-              label: 'newhandle',
+              label: label !== undefined ? label : 'newhandle',
               action: 'create',
               did: did,
               comment: `New handle: ${did} first post (${commit.atURL})`,
             })
+
+            if (label === 'newaccount') {
+              await tx.insert(schema.label_actions).values({
+                label: 'newaccount',
+                action: 'remove',
+                did: did,
+                comment: 'Removing New Account label',
+                unixtimescheduled:
+                  Math.floor(Date.now() / 1000) +
+                    Number.parseInt(process.env.NEWHANDLE_EXPIRY!) || 2592000,
+              })
+            }
 
             watched_dids.delete(did)
           })

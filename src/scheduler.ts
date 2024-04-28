@@ -10,11 +10,11 @@ export default async function scheduler() {
         schema.new_handles.unixtimeoffirstpost,
         Math.floor(Date.now() / 1000) - expireAfter,
       ),
-      columns: { did: true, id: true },
+      columns: { did: true, id: true, label: true },
     })
     expiringlabels.map(async (expiringlabel) => {
       await db.insert(schema.label_actions).values({
-        label: 'newhandle',
+        label: expiringlabel.label,
         action: 'remove',
         did: expiringlabel.did,
         comment: `Expiring: ${expiringlabel.did})`,

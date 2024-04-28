@@ -8,6 +8,10 @@ export const new_handles = pgTable(
     handle: text('handle'),
     unixtimeofchange: integer('unixtimeofchange'),
     unixtimeoffirstpost: integer('unixtimeoffirstpost'),
+    label: text('label')
+      .$type<'newaccount' | 'newhandle'>()
+      .notNull()
+      .default('newhandle'),
   },
   (table) => {
     return {
