@@ -22,7 +22,7 @@ export default async function labelEmitter() {
     })
     events.map(async (event) => {
       logger.info(
-        `emitting ${event.action} '${event.label}' for ${event.did}: ${event.comment}`,
+        `emitting ${event.action} '${event.label}' for ${event.did}, comment: "${event.comment}"`,
       )
       if (await emitAccountReport(event)) {
         await db

@@ -23,5 +23,5 @@ export default async function insertOrUpdateHandle(
     })
 
   const time = new Date(unixtimeofchange * 1000).toISOString()
-  logger.info(`handle change ${handle} from ${did} at ${time}`)
+  // logger.info(`handle change ${handle} from ${did} at ${time}`)
 }
