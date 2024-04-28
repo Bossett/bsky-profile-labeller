@@ -166,7 +166,7 @@ export default async function firehoseWatcher() {
               label: label !== undefined ? label : 'newhandle',
               action: 'create',
               did: did,
-              comment: `New handle: ${did} first post (${commit.atURL})`,
+              comment: `${label}: ${did} first post (${commit.atURL})`,
             })
 
             if (label === 'newaccount') {
