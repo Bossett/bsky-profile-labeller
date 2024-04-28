@@ -69,10 +69,15 @@ export default async function firehoseWatcher() {
           lag = Date.now() - new Date(commit.meta['time']).getTime()
         }
 
+        const did = commit.repo || ''
+
+        if (did === '') continue
+
+        const isWatched = watched_dids.has(did)
+
         if (
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#identity'
         ) {
-          const did = commit.repo || ''
           if (did.startsWith('did:plc:')) {
             const res = (await (
               await limit(() => fetch(`https://plc.directory/${did}/log/audit`))
@@ -111,43 +116,49 @@ export default async function firehoseWatcher() {
         }
 
         if (
-          commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
-          commit.record['$type'] === 'app.bsky.feed.post'
+          commit.meta['$type'] ===
+            'com.atproto.sync.subscribeRepos#tombstone ' &&
+          isWatched
         ) {
-          const isWatched = watched_dids.has(commit.meta['repo'])
+          await db.transaction(async (tx) => {
+            await tx
+              .delete(schema.new_handles)
+              .where(eq(schema.new_handles.did, did))
 
-          /*
-          const isWatched =
-            (await db.query.new_handles.findFirst({
-              where: and(
-                isNull(schema.new_handles.unixtimeoffirstpost),
-                eq(schema.new_handles.did, commit.meta['repo']),
-              ),
-              columns: { did: true },
-            })) !== undefined 
-          */
-
-          if (isWatched) {
-            // logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
-            const unixtimeoffirstpost = Math.floor(
-              new Date(commit.meta['time']).getTime() / 1000,
-            )
-            await db.transaction(async (tx) => {
-              await tx
-                .update(schema.new_handles)
-                .set({ unixtimeoffirstpost: unixtimeoffirstpost })
-                .where(eq(schema.new_handles.did, commit.meta['repo']))
-
-              await tx.insert(schema.label_actions).values({
-                label: 'newhandle',
-                action: 'create',
-                did: commit.meta['repo'],
-                comment: `New handle: ${commit.meta['repo']} first post (${commit.atURL})`,
-              })
-
-              watched_dids.delete(commit.meta['repo'])
+            await tx.insert(schema.label_actions).values({
+              label: 'newhandle',
+              action: 'remove',
+              did: did,
+              comment: `Tombstone: ${did}`,
             })
-          }
+
+            watched_dids.delete(did)
+          })
+        }
+
+        if (
+          commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
+          commit.record['$type'] === 'app.bsky.feed.post' &&
+          isWatched
+        ) {
+          const unixtimeoffirstpost = Math.floor(
+            new Date(commit.meta['time']).getTime() / 1000,
+          )
+          await db.transaction(async (tx) => {
+            await tx
+              .update(schema.new_handles)
+              .set({ unixtimeoffirstpost: unixtimeoffirstpost })
+              .where(eq(schema.new_handles.did, did))
+
+            await tx.insert(schema.label_actions).values({
+              label: 'newhandle',
+              action: 'create',
+              did: did,
+              comment: `New handle: ${did} first post (${commit.atURL})`,
+            })
+
+            watched_dids.delete(did)
+          })
         }
       }
     } catch (e) {
