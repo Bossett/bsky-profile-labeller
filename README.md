@@ -10,7 +10,7 @@ At some point, this will assume [Ozone](https://github.com/bluesky-social/ozone)
 
 Expects the environment:
 
-```bash
+```shell
 LABELLER_HANDLE=
 LABELLER_PASSWORD=
 LABELLER_SERVICE=https://bsky.social
