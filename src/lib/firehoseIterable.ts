@@ -49,8 +49,8 @@ export default class FirehoseIterable {
 
   async readFirehose(sub: Subscription) {
     for await (const frame of sub) {
-      while (this.commitQueue.length > 999 && (await wait(1000))) {
-        // prevent memory leak by keeping queue to ~1000
+      while (this.commitQueue.length > 9999 && (await wait(1000))) {
+        // prevent memory leak by keeping queue to ~10000
       }
 
       this.commitQueue.push(frame as Commit)
