@@ -128,7 +128,7 @@ export default async function firehoseWatcher() {
           */
 
           if (isWatched) {
-            logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
+            // logger.info(`${commit.meta['repo']} first post (${commit.atURL})`)
             const unixtimeoffirstpost = Math.floor(
               new Date(commit.meta['time']).getTime() / 1000,
             )
