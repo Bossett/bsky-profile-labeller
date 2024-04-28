@@ -73,7 +73,7 @@ export default async function firehoseWatcher() {
 
         if (did === '') continue
 
-        const isWatched = watched_dids.has(did)
+        const isWatched = () => watched_dids.has(did)
 
         if (
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#identity'
@@ -118,7 +118,7 @@ export default async function firehoseWatcher() {
         if (
           commit.meta['$type'] ===
             'com.atproto.sync.subscribeRepos#tombstone ' &&
-          isWatched
+          isWatched()
         ) {
           await db.transaction(async (tx) => {
             await tx
@@ -139,7 +139,7 @@ export default async function firehoseWatcher() {
         if (
           commit.meta['$type'] === 'com.atproto.sync.subscribeRepos#commit' &&
           commit.record['$type'] === 'app.bsky.feed.post' &&
-          isWatched
+          isWatched()
         ) {
           const unixtimeoffirstpost = Math.floor(
             new Date(commit.meta['time']).getTime() / 1000,
