@@ -4,6 +4,8 @@ import wait from '@/lib/wait.js'
 import limit from '@/lib/rateLimit.js'
 import formatDuration from '@/lib/formatDuration.js'
 
+import env from '@/lib/env.js'
+
 import db, { schema, eq, isNull, and } from '@/db/db.js'
 import insertOrUpdateHandle from '@/lib/insertOrUpdateHandle.js'
 
@@ -176,8 +178,7 @@ export default async function firehoseWatcher() {
                 did: did,
                 comment: 'Removing New Account label',
                 unixtimescheduled:
-                  Math.floor(Date.now() / 1000) +
-                    Number.parseInt(process.env.NEWHANDLE_EXPIRY!) || 2592000,
+                  Math.floor(Date.now() / 1000) + env.NEWHANDLE_EXPIRY,
               })
             }
 

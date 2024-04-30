@@ -1,9 +1,9 @@
 import wait from '@/lib/wait.js'
 import db, { schema, eq, lte } from '@/db/db.js'
+import env from '@/lib/env.js'
 
 export default async function scheduler() {
-  const expireAfter = Number.parseInt(process.env.NEWHANDLE_EXPIRY || '2592000')
-
+  const expireAfter = env.NEWHANDLE_EXPIRY
   do {
     const expiringlabels = await db.query.new_handles.findMany({
       where: lte(
