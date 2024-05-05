@@ -147,14 +147,18 @@ async function _getNewLabel({
         const postTime = new Date(item.post.indexedAt).getTime()
         if (previousPostTime) postIntervals.push(postTime - previousPostTime)
 
+        const thisIsEventPost = item.post.uri === post
+
         if (item.post.uri === post) postFound = true
+
         if (postTime < handleCreationTime) {
           postBeforeChange = true
         } else if (postTime >= handleCreationTime) {
           if (
             postBeforeChange === true &&
             postAfterChange === false &&
-            postTime > watchedFrom
+            postTime > watchedFrom &&
+            thisIsEventPost
           ) {
             // this post is the first post after the change
             createLabels.add('newhandle')
