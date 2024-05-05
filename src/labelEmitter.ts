@@ -4,6 +4,7 @@ import logger from '@/lib/logger.js'
 import emitAccountReport from '@/emitAccountReport.js'
 
 import db, { schema, lte, inArray } from '@/db/db.js'
+import { purgeCacheForDid } from './lib/getUserDetails'
 
 export default async function labelEmitter() {
   do {
@@ -31,6 +32,7 @@ export default async function labelEmitter() {
       debugLines.push(`${event.action} ${event.did} '${event.label}'`)
       if (await emitAccountReport(event)) {
         completedEvents.push(event.id)
+        purgeCacheForDid(event.did)
         eventLog[event.label]
           ? eventLog[event.label]++
           : (eventLog[event.label] = 1)

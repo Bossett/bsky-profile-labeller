@@ -138,6 +138,16 @@ function scavengeExpired() {
   }
 }
 
+export function purgeCacheForDid(did: string) {
+  results.set(did, {
+    did: did,
+    failed: false,
+    data: undefined,
+    completedDate: undefined,
+    errorReason: undefined,
+  })
+}
+
 async function getUserDetails(
   did: string,
 ): Promise<AppBskyActorDefs.ProfileViewDetailed | { error: string }> {
