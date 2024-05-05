@@ -13,7 +13,7 @@
 		//8080
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "yarn install",
+	"postCreateCommand": "curl -L https://fly.io/install.sh | sh && yarn install",
 	"customizations": {
 		"vscode": {
 			"extensions": [
