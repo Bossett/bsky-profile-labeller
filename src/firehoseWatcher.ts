@@ -51,7 +51,7 @@ export default async function firehoseWatcher() {
         timeToRealtimeStr = `not catching up`
       }
 
-      if (lag < 10000) timeToRealtimeStr = `real time`
+      if (lag < 60000) timeToRealtimeStr = `real time`
 
       lastLag = lag
 
