@@ -101,7 +101,7 @@ async function _getNewLabel({
     return {}
   }
 
-  if (authorFeed.length === 0) return {} // no posts, no labels
+  if (!authorFeed || authorFeed.length === 0) return {} // no posts, no labels
 
   authorFeed = authorFeed.filter(
     (record) => record.reason?.$type !== 'app.bsky.feed.defs#reasonRepost',
