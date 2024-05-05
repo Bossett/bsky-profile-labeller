@@ -3,7 +3,7 @@ import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/lib/logger.js'
 import env from '@/lib/env.js'
 
-import { pdsLimit } from '@/lib/rateLimit'
+import { pdsLimit } from '@/lib/rateLimit.js'
 
 export default async function emitAccountReport({
   label,
