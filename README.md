@@ -33,14 +33,14 @@ PLC_DIRECTORY=https://plc.directory
 
 ### Currently implemented
 
-| Label              | Description                                                        | Tag           |
-| ------------------ | ------------------------------------------------------------------ | ------------- |
-| New Account        | A new account that has its first post <30 days ago                 | newaccount    |
-| New Handle         | An account that has its first post under a new handle <30 days ago | newhandle     |
-| No Avatar          | An account without a profile picture                               | noavatar      |
-| No Display Name    | An account without a display name                                  | nodisplayname |
-| Non-PLC DID        | An account with a did that isn't did:plc:...                       | nonplcdid     |
-| High Volume Poster | An account that has been posting very rapidly                      | rapidposts    |
+| Label           | Description                                                        | Tag           |
+| --------------- | ------------------------------------------------------------------ | ------------- |
+| New Account     | A new account that has its first post <30 days ago                 | newaccount    |
+| New Handle      | An account that has its first post under a new handle <30 days ago | newhandle     |
+| No Avatar       | An account without a profile picture                               | noavatar      |
+| No Display Name | An account without a display name                                  | nodisplayname |
+| Non-PLC DID     | An account with a did that isn't did:plc:...                       | nonplcdid     |
+| Periodic        | An account that has posted at very regular intervals for 100 posts | rapidposts    |
 
 ### TODO
 

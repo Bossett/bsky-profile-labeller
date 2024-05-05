@@ -126,8 +126,6 @@ async function _getNewLabel({
       createLabels.add('newaccount')
   }
 
-  let previousPostTime = new Date(authorFeed[0].post.indexedAt).getTime()
-
   switch (did.startsWith('did:plc:')) {
     case false:
       break
@@ -141,11 +139,13 @@ async function _getNewLabel({
       let postBeforeChange = false
       let postAfterChange = false
       let postFound = false
-      let maxPostInterval: number = 0
+      let postIntervals: number[] = []
+
+      let previousPostTime: number | undefined = undefined
 
       for (const item of authorFeed) {
         const postTime = new Date(item.post.indexedAt).getTime()
-        maxPostInterval = Math.max(postTime - previousPostTime, maxPostInterval)
+        if (previousPostTime) postIntervals.push(postTime - previousPostTime)
 
         if (item.post.uri === post) postFound = true
         if (postTime < handleCreationTime) {
@@ -192,12 +192,22 @@ async function _getNewLabel({
         }
       }
 
+      const stDev = (numArr: number[]) => {
+        const n = numArr.length
+        const mean = numArr.reduce((a, b) => a + b) / n
+        const deviations = numArr.map((x) => Math.pow(x - mean, 2))
+        const variance = deviations.reduce((a, b) => a + b) / n
+        return Math.sqrt(variance)
+      }
+
       if (
-        maxPostInterval < env.limits.RAPID_POST_THRESHOLD_MS &&
+        stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
         authorFeed.length === limit
-      )
+      ) {
         createLabels.add('rapidposts')
-      else removeLabels.add('rapidposts')
+      } else {
+        removeLabels.add('rapidposts')
+      }
   }
 
   return { create: Array.from(createLabels), remove: Array.from(removeLabels) }
