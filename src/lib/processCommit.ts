@@ -6,7 +6,7 @@ import { getExpiringLabels } from '@/lib/getExpiringLabels.js'
 import { insertOperations, operationType } from '@/lib/insertOperations.js'
 import { AppBskyActorDefs } from '@atproto/api'
 
-import { agent, reauth } from '@/lib/bskyAgent.js'
+import { agentDid } from '@/lib/bskyAgent.js'
 
 import logger from '@/lib/logger.js'
 
@@ -54,7 +54,7 @@ export async function processCommit(commit: {
 
   const currentLabels = profileData.labels
     ? profileData.labels.filter((label) => {
-        label.src === agent.session?.did && label.neg !== true
+        return label.src === agentDid && !label.neg
       })
     : []
 
@@ -81,12 +81,9 @@ export async function processCommit(commit: {
 
   debugString = `getting expiringLabels`
 
-  if (!agent.session?.did) reauth(agent)
-  const labellerDid = `${agent.session?.did}`
-
   const expiringLabels = await getExpiringLabels({
     labels: currentLabels,
-    labeller: labellerDid,
+    labeller: agentDid,
     watchedFrom: handleExpiryThreshold,
     handlesToExpire: ['newhandle', 'newaccount'],
   })
@@ -111,7 +108,8 @@ export async function processCommit(commit: {
       currentLabels.map((curr) => curr.val).includes(label) &&
       !handlesToReapply.includes(label)
     ) {
-      // only create labels that are not already on the account UNLESS they are in handlesToReapply
+      // only create labels that are not already on the account
+      // UNLESS they are in handlesToReapply
       logger.debug(`not re-labelling ${did} with ${label}`)
       return false
     } else {
@@ -120,8 +118,12 @@ export async function processCommit(commit: {
   })
 
   labelOperations.remove = labelOperations.remove.filter((label) => {
-    return currentLabels.map((curr) => curr.val).includes(label)
-    // only remove labels that are already on the account
+    if (currentLabels.map((curr) => curr.val).includes(label)) {
+      // only remove labels that are already on the account
+      return true
+    } else {
+      return false
+    }
   })
 
   const operations: operationType[] = []

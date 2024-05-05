@@ -1,4 +1,4 @@
-import { agent, reauth } from '@/lib/bskyAgent.js'
+import { agent, reauth, agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/lib/logger.js'
 import env from '@/lib/env.js'
@@ -32,13 +32,13 @@ export default async function emitAccountReport({
       $type: 'com.atproto.admin.defs#repoRef',
       did: did,
     },
-    createdBy: agent.session!.did,
+    createdBy: agentDid,
   }
 
   try {
     await pdsLimit(() =>
       agent
-        .withProxy('atproto_labeler', agent.session!.did)
+        .withProxy('atproto_labeler', agentDid)
         .api.tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {

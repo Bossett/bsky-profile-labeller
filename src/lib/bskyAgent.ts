@@ -17,8 +17,14 @@ const _reauth = async (agent: BskyAgent) => {
 
 if (!(await _reauth(_agent))) throw 'Agent Authentication Failed'
 
+export const agentDid: string = (
+  await _agent.com.atproto.identity.resolveHandle({
+    handle: env.LABELLER_HANDLE,
+  })
+).data.did
+
 BskyAgent.configure({
-  appLabelers: [_agent.session?.did!],
+  appLabelers: [agentDid],
 })
 
 export const agent: BskyAgent = _agent
