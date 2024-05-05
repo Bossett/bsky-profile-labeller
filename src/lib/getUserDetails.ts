@@ -3,7 +3,7 @@ import { pdsLimit } from '@/lib/rateLimit.js'
 import { agent } from '@/lib/bskyAgent.js'
 import env from '@/lib/env.js'
 import wait from '@/lib/wait.js'
-import logger from './logger'
+import logger from '@/lib/logger.js'
 
 const results = new Map<string, pendingResults>()
 
