@@ -105,8 +105,23 @@ export async function processCommit(commit: {
     ...(expiringLabels.remove ? expiringLabels.remove : []),
   ]
 
+  const handlesToReapply = ['newhandle']
+  labelOperations.create = labelOperations.create.filter((label) => {
+    if (
+      currentLabels.map((curr) => curr.val).includes(label) &&
+      !handlesToReapply.includes(label)
+    ) {
+      // only create labels that are not already on the account UNLESS they are in handlesToReapply
+      logger.debug(`not re-labelling ${did} with ${label}`)
+      return false
+    } else {
+      return true
+    }
+  })
+
   labelOperations.remove = labelOperations.remove.filter((label) => {
-    currentLabels.map((curr) => curr.val).includes(label)
+    return currentLabels.map((curr) => curr.val).includes(label)
+    // only remove labels that are already on the account
   })
 
   const operations: operationType[] = []
