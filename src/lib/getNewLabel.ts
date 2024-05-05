@@ -83,6 +83,7 @@ async function _getNewLabel({
   const limit = env.limits.AUTHOR_FEED_MAX_RESULTS
 
   let authorFeed: AppBskyFeedDefs.FeedViewPost[] = []
+  let isFullFeedHistory = false
 
   try {
     const res = await moizedFetch(
@@ -93,6 +94,7 @@ async function _getNewLabel({
     )
     const data = res as AppBskyFeedGetAuthorFeed.OutputSchema
     authorFeed = data.feed
+    isFullFeedHistory = data.cursor ? false : true
   } catch (e) {
     logger.debug(`${e.message} reading feed for ${did}`)
     if (`${e.message}` === 'fetch failed') throw e
@@ -100,8 +102,6 @@ async function _getNewLabel({
   }
 
   if (authorFeed.length === 0) return {} // no posts, no labels
-
-  const isFullFeed = authorFeed.length === limit
 
   authorFeed = authorFeed.filter(
     (record) => record.reason?.$type !== 'app.bsky.feed.defs#reasonRepost',
@@ -119,7 +119,7 @@ async function _getNewLabel({
     return new Date(a_val).getTime() - new Date(b_val).getTime()
   })
 
-  if (authorFeed[0].post.uri === post && !isFullFeed) {
+  if (authorFeed[0].post.uri === post && isFullFeedHistory) {
     if (new Date(authorFeed[0].post.indexedAt).getTime() > watchedFrom)
       // current post is their first ever
       // and happened in the watched period
