@@ -192,21 +192,18 @@ async function _getNewLabel({
         }
       }
 
-      const stDev = (numArr: number[]) => {
-        const n = numArr.length
-        const mean = numArr.reduce((a, b) => a + b) / n
-        const deviations = numArr.map((x) => Math.pow(x - mean, 2))
-        const variance = deviations.reduce((a, b) => a + b) / n
-        return Math.sqrt(variance)
-      }
+      if (authorFeed.length === limit && postIntervals.length > 1) {
+        const stDev = (numArr: number[]) => {
+          const n = numArr.length
+          const mean = numArr.reduce((a, b) => a + b) / n
+          const deviations = numArr.map((x) => Math.pow(x - mean, 2))
+          const variance = deviations.reduce((a, b) => a + b) / n
+          return Math.sqrt(variance)
+        }
 
-      if (
-        stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
-        authorFeed.length === limit
-      ) {
-        createLabels.add('rapidposts')
-      } else {
-        removeLabels.add('rapidposts')
+        if (stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS)
+          createLabels.add('rapidposts')
+        else removeLabels.add('rapidposts')
       }
   }
 
