@@ -1,6 +1,3 @@
-import wait from '@/lib/wait.js'
-import logger from '@/lib/logger.js'
-
 import firehoseWatcher from '@/firehoseWatcher.js'
 import labelEmitter from '@/labelEmitter.js'
 import scheduler from '@/scheduler.js'
@@ -19,6 +16,6 @@ try {
   lastRun = Date.now()
   await Promise.all(promises)
 } catch (e) {
-  logger.error(e)
+  console.log(e)
   process.exit(1)
 }

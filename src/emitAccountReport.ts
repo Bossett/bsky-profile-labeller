@@ -5,34 +5,16 @@ import env from '@/lib/env.js'
 
 import { pdsLimit } from '@/lib/rateLimit.js'
 
-export default async function emitAccountReport({
-  label,
-  action,
-  did,
-  comment,
-}: {
-  label: string
-  action: 'create' | 'remove'
-  did: string
-  comment: string | null | undefined
-}): Promise<boolean> {
+export default async function emitAccountReport(
+  eventInput: ToolsOzoneModerationEmitEvent.InputSchema,
+): Promise<boolean> {
   if (env.DANGEROUSLY_EXPOSE_SECRETS) {
-    logger.debug(`DANGEROUSLY_EXPOSE_SECRETS is set not emitting ${label}`)
+    logger.debug(
+      `DANGEROUSLY_EXPOSE_SECRETS is set not emitting:\n ${JSON.stringify(
+        eventInput,
+      )}`,
+    )
     return true
-  }
-
-  const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
-    event: {
-      $type: 'tools.ozone.moderation.defs#modEventLabel',
-      createLabelVals: action === 'create' ? [label] : [],
-      negateLabelVals: action === 'remove' ? [label] : [],
-      comment: `${comment}`,
-    },
-    subject: {
-      $type: 'com.atproto.admin.defs#repoRef',
-      did: did,
-    },
-    createdBy: agentDid,
   }
 
   try {
