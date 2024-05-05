@@ -4,7 +4,7 @@ import logger from '@/lib/logger.js'
 import emitAccountReport from '@/emitAccountReport.js'
 
 import db, { schema, lte, inArray } from '@/db/db.js'
-import { purgeCacheForDid } from './lib/getUserDetails'
+import { purgeCacheForDid } from './lib/getUserDetails.js'
 
 export default async function labelEmitter() {
   do {
