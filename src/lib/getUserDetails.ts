@@ -2,7 +2,7 @@ import { AppBskyActorDefs } from '@atproto/api'
 import { pdsLimit } from '@/lib/rateLimit.js'
 import { agent } from '@/lib/bskyAgent.js'
 import env from '@/lib/env.js'
-import wait from './wait'
+import wait from '@/lib/wait.js'
 
 const results = new Map<string, pendingResults>()
 
