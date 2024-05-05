@@ -3,6 +3,7 @@ import { pdsLimit } from '@/lib/rateLimit.js'
 import { agent } from '@/lib/bskyAgent.js'
 import env from '@/lib/env.js'
 import wait from '@/lib/wait.js'
+import logger from './logger'
 
 const results = new Map<string, pendingResults>()
 
@@ -139,13 +140,13 @@ function scavengeExpired() {
 }
 
 export function purgeCacheForDid(did: string) {
+  if (!did) return
+
   results.set(did, {
-    did: did,
-    failed: false,
-    data: undefined,
-    completedDate: undefined,
-    errorReason: undefined,
+    ...(results.get(did) as pendingResults),
+    completedDate: new Date(0),
   })
+  logger.debug(`cache purged for ${did}`)
 }
 
 async function getUserDetails(
