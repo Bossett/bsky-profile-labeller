@@ -13,10 +13,19 @@ Expects the environment:
 ```shell
 LABELLER_HANDLE=
 LABELLER_PASSWORD=
-LABELLER_SERVICE=https://bsky.social
 NEON_DATABASE_URL=postgresql://...
 NEWHANDLE_EXPIRY=2592000
 ```
+
+You can also set `DANGEROUSLY_EXPOSE_SECRETS=true` to get debug output and block emitting, and configure alternative URLS with:
+
+```shell
+LABELLER_SERVICE=https://bsky.social
+PUBLIC_SERVICE=https://public.api.bsky.app
+PLC_DIRECTORY=https://plc.directory
+```
+
+/lib/limit.ts is full of tweakables depending on your particular needs - defaults should be fine, but this is where you can configure rate limits
 
 (This part very subject to change - this is an in-flight project and I've done no work to package for release.)
 
@@ -24,18 +33,17 @@ NEWHANDLE_EXPIRY=2592000
 
 ### Currently implemented
 
-| Label       | Description                                                        | Tag        |
-| ----------- | ------------------------------------------------------------------ | ---------- |
-| New Account | A new account that has its first post <30 days ago                 | newaccount |
-| New Handle  | An account that has its first post under a new handle <30 days ago | newhandle  |
+| Label              | Description                                                        | Tag           |
+| ------------------ | ------------------------------------------------------------------ | ------------- |
+| New Account        | A new account that has its first post <30 days ago                 | newaccount    |
+| New Handle         | An account that has its first post under a new handle <30 days ago | newhandle     |
+| No Avatar          | An account without a profile picture                               | noavatar      |
+| No Display Name    | An account without a display name                                  | nodisplayname |
+| Non-PLC DID        | An account with a did that isn't did:plc:...                       | nonplcdid     |
+| High Volume Poster | An account that has been posting very rapidly                      | rapidposts    |
 
 ### TODO
 
-- New...
-  - New pfp
-- Incomplete
-  - No pfp
-  - No display name
 - Pronouns/flags/etc.
   - Not totally sure here, but want to match on some items.
   - May support 'custom' attributes if present in profile

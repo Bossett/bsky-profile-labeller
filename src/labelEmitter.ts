@@ -3,7 +3,7 @@ import logger from '@/lib/logger.js'
 
 import emitAccountReport from '@/emitAccountReport.js'
 
-import db, { schema, lte, eq } from '@/db/db.js'
+import db, { schema, lte, inArray } from '@/db/db.js'
 
 export default async function labelEmitter() {
   do {
@@ -20,15 +20,39 @@ export default async function labelEmitter() {
         action: true,
       },
     })
-    events.map(async (event) => {
-      logger.info(
-        `emitting ${event.action} '${event.label}' for ${event.did}, comment: "${event.comment}"`,
-      )
+    const eventLog: { [key: string]: number } = {}
+    let totalEvents = 0
+
+    const completedEvents: (typeof schema.label_actions.$inferSelect.id)[] = []
+
+    const debugLines: string[] = []
+
+    const promises = events.map(async (event) => {
+      debugLines.push(`${event.action} ${event.did} '${event.label}'`)
       if (await emitAccountReport(event)) {
-        await db
-          .delete(schema.label_actions)
-          .where(eq(schema.label_actions.id, event.id))
+        completedEvents.push(event.id)
+        eventLog[event.label]
+          ? eventLog[event.label]++
+          : (eventLog[event.label] = 1)
+        totalEvents++
       }
     })
+
+    for (const line of debugLines) {
+      logger.debug(line)
+    }
+
+    await Promise.all(promises)
+
+    if (completedEvents.length > 0) {
+      logger.debug(`deleting ${completedEvents.length} completed events`)
+      await db
+        .delete(schema.label_actions)
+        .where(inArray(schema.label_actions.id, completedEvents))
+      logger.info(`emitted ${totalEvents} events:`)
+      for (const event of Object.keys(eventLog)) {
+        logger.info(`  ${event}: ${eventLog[event]}`)
+      }
+    }
   } while (await wait(5000))
 }

@@ -14,21 +14,22 @@
     "@atproto/xrpc-server": "^0.5.1",
     "@neondatabase/serverless": "^0.9.1",
     "@types/express": "^4.17.17",
+    "@types/ws": "^8.5.10",
+    "bufferutil": "^4.0.8",
     "cbor-x": "^1.5.8",
     "denque": "^2.1.0",
-    "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.9",
     "express": "^4.18.3",
+    "moize": "^6.1.6",
     "multiformats": "9.9.0",
     "p-ratelimit": "^1.0.1",
     "postgres": "^3.4.4",
     "winston": "^3.12.0",
-    "ws": "^8.16.0",
+    "ws": "^8.17.0",
     "zod": "^3.23.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.28",
-    "@types/ws": "^8.5.10",
     "drizzle-kit": "^0.20.17",
     "tsc-alias": "^1.8.8",
     "tsx": "^4.7.1",
@@ -41,6 +42,7 @@
     "db:update": "yarn db:generate && yarn db:migrate",
     "build": "tsc && tsc-alias",
     "start": "node --expose-gc ./dist/app.js",
-    "dev": "tsx --env-file=.env src/app.ts"
+    "dev": "tsx --env-file=.env --expose-gc src/app.ts",
+    "prof": "tsx --prof --env-file=.env src/app.ts"
   }
 }

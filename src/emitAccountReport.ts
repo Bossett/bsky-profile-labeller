@@ -1,6 +1,9 @@
 import { agent, reauth } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/lib/logger.js'
+import env from '@/lib/env.js'
+
+import { pdsLimit } from '@/lib/rateLimit'
 
 export default async function emitAccountReport({
   label,
@@ -13,6 +16,11 @@ export default async function emitAccountReport({
   did: string
   comment: string | null | undefined
 }): Promise<boolean> {
+  if (env.DANGEROUSLY_EXPOSE_SECRETS) {
+    logger.debug(`DANGEROUSLY_EXPOSE_SECRETS is set not emitting ${label}`)
+    return true
+  }
+
   const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
     event: {
       $type: 'tools.ozone.moderation.defs#modEventLabel',
@@ -28,12 +36,18 @@ export default async function emitAccountReport({
   }
 
   try {
-    await agent
-      .withProxy('atproto_labeler', agent.session!.did)
-      .api.tools.ozone.moderation.emitEvent(eventInput)
+    await pdsLimit(() =>
+      agent
+        .withProxy('atproto_labeler', agent.session!.did)
+        .api.tools.ozone.moderation.emitEvent(eventInput),
+    )
   } catch (e) {
     logger.warn(`${e} from emitAccountReport attempting re-auth`)
-    await reauth(agent)
+    try {
+      await reauth(agent)
+    } catch (e) {
+      throw e
+    }
     return false
   }
   return true
