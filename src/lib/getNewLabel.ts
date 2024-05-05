@@ -77,7 +77,8 @@ async function _getNewLabel({
 }: Params): Promise<Result> {
   const post = `at://${did}/app.bsky.feed.post/${rkey}`
 
-  const labels = new Set<string>()
+  const createLabels = new Set<string>()
+  const removeLabels = new Set<string>()
 
   const limit = env.limits.AUTHOR_FEED_MAX_RESULTS
 
@@ -122,7 +123,7 @@ async function _getNewLabel({
     if (new Date(authorFeed[0].post.indexedAt).getTime() > watchedFrom)
       // current post is their first ever
       // and happened in the watched period
-      labels.add('newaccount')
+      createLabels.add('newaccount')
   }
 
   let previousPostTime = new Date(authorFeed[0].post.indexedAt).getTime()
@@ -156,7 +157,7 @@ async function _getNewLabel({
             postTime > watchedFrom
           ) {
             // this post is the first post after the change
-            labels.add('newhandle')
+            createLabels.add('newhandle')
           }
           postAfterChange = true
         }
@@ -180,7 +181,7 @@ async function _getNewLabel({
 
             if (thisPost) {
               if (new Date(thisPost).getTime() > handleCreationTime)
-                labels.add('newhandle')
+                createLabels.add('newhandle')
             }
           } else {
             logger.debug(`error finding ${post} (deleted?)`)
@@ -195,10 +196,11 @@ async function _getNewLabel({
         maxPostInterval < env.limits.RAPID_POST_THRESHOLD_MS &&
         authorFeed.length === limit
       )
-        labels.add('rapidposts') // ~5 minutes between posts for *limit* posts
+        createLabels.add('rapidposts')
+      else removeLabels.add('rapidposts')
   }
 
-  return { create: Array.from(labels) }
+  return { create: Array.from(createLabels), remove: Array.from(removeLabels) }
 }
 
 export const getNewLabel = moize(_getNewLabel, {
