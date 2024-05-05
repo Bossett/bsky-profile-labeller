@@ -75,7 +75,7 @@ async function _getNewLabel({
   rkey,
   watchedFrom,
 }: Params): Promise<Result> {
-  const post = `at://${did}/app.bsky.feed.posts/${rkey}`
+  const post = `at://${did}/app.bsky.feed.post/${rkey}`
 
   const labels = new Set<string>()
 
