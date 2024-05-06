@@ -23,6 +23,7 @@ export default async function firehoseWatcher() {
   let lag = 0
   let lastLag = 0
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
+  const stalled_at = env.limits.MIN_FIREHOSE_OPS
 
   let wantsPause = false
   let hasPaused = false
@@ -91,6 +92,8 @@ export default async function firehoseWatcher() {
         global.gc()
       }
       logger.debug(`unpaused, resuming...`)
+      if (speed < stalled_at)
+        throw Error('firehose watcher stalled, restarting...')
       wantsPause = false
     } while (await wait(interval_ms))
   }
