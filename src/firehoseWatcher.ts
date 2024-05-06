@@ -130,7 +130,8 @@ export default async function firehoseWatcher() {
       for await (const commit of firehose) {
         if (Number.isSafeInteger(commit.meta['seq'])) {
           seq = commit.meta['seq']
-          lag = Date.now() - new Date(commit.meta['time']).getTime()
+          lag =
+            Date.now() - Math.max(new Date(commit.meta['time']).getTime(), lag)
         }
 
         if (wantsPause && !hasPaused) {
