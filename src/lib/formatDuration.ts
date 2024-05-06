@@ -19,19 +19,14 @@ export default function formatDuration(ms: number): string {
     if ((val !== 0 && val !== '0.00') || output) {
       if (isFirstComponent) {
         isFirstComponent = false
-        if (key === 's') {
-          output += `${parseFloat(`${val}`).toFixed(2)}s`
-        } else {
-          output += `${parseInt(`${val}`, 10)}${key}`
-        }
+      }
+      if (key === 's') {
+        output += `${parseFloat(`${val}`).toFixed(2)}s`.padStart(
+          output ? 6 : 4,
+          '0',
+        )
       } else {
-        if (key === 's') {
-          output += `${parseFloat(`${val}`).toFixed(2)}s`
-        } else {
-          output += `${parseInt(`${val}`, 10)
-            .toString()
-            .padStart(2, '0')}${key}`
-        }
+        output += `${parseInt(`${val}`, 10).toString().padStart(2, '0')}${key}`
       }
     }
   }
