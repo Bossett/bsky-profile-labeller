@@ -39,7 +39,7 @@ const limits = {
   MOIZED_FETCH_MAX_AGE_MS: 30 * 1000, // how long to cache fetch results when using general fetch()
   PAUSE_TIMEOUT_MS: 3 * 60 * 1000, // how long can we pause operations waiting to write to the db
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
-  USER_DETAILS_MAX_AGE_MS: 30 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
+  USER_DETAILS_MAX_AGE_MS: 60 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
 }
 
 const validateLimits = {
