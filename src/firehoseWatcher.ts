@@ -41,6 +41,8 @@ export default async function firehoseWatcher() {
       const deltaLag = lastLag - lag
       let timeToRealtimeStr = 'initialising'
 
+      let throwOnNotCatchingUp = false
+
       const speed = (seq - old_seq) / (interval_ms / 1000)
 
       if (deltaLag > 0) {
@@ -48,8 +50,10 @@ export default async function firehoseWatcher() {
         if (timeToRealtime > interval_ms && lastLag !== 0) {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
+        throwOnNotCatchingUp = false
       } else if (lastLag !== 0) {
         timeToRealtimeStr = `not catching up`
+        throwOnNotCatchingUp = true
       }
 
       if (lag < 60000) timeToRealtimeStr = `real time`
@@ -92,8 +96,12 @@ export default async function firehoseWatcher() {
         global.gc()
       }
       logger.debug(`unpaused, resuming...`)
-      if (speed < stalled_at)
-        throw Error('firehose watcher stalled, restarting...')
+
+      if (speed < stalled_at && throwOnNotCatchingUp) {
+        logger.error(`firehose stalled at ${speed} ops/s`)
+        throw Error('firehoseWatcherStalled')
+      }
+
       wantsPause = false
     } while (await wait(interval_ms))
   }
