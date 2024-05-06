@@ -32,6 +32,8 @@ export default async function firehoseWatcher() {
 
   let willRestartOnUnpause = false
 
+  let itemsProcessed = 0
+
   const interval = async () => {
     await wait(15000)
     do {
@@ -41,10 +43,14 @@ export default async function firehoseWatcher() {
       }
 
       const deltaLag = lastLag - lag
-      let timeToRealtimeStr = 'initialising'
-      let isSlowingDown = false
+      let timeToRealtimeStr: string
+      let isSlowingDown: boolean
 
-      const speed = (seq - old_seq) / (interval_ms / 1000)
+      isSlowingDown = false
+      timeToRealtimeStr = 'initialising'
+
+      const speed = itemsProcessed / (interval_ms / 1000)
+      itemsProcessed = 0
 
       if (deltaLag > 0) {
         const timeToRealtime = lag / (deltaLag / interval_ms)
@@ -57,7 +63,10 @@ export default async function firehoseWatcher() {
         isSlowingDown = true
       }
 
-      if (lag < 60000) timeToRealtimeStr = `real time`
+      if (lag < 60000) {
+        isSlowingDown = false
+        timeToRealtimeStr = `real time`
+      }
 
       lastLag = lag
 
@@ -157,7 +166,8 @@ export default async function firehoseWatcher() {
               }
               if (waitCycles > env.limits.PAUSE_TIMEOUT_MS / 1000) {
                 logger.error(
-                  `too many retry cycles waiting for ${getQueueLength()} ops to finish`,
+                  `too many retry cycles waiting for ` +
+                    `${getQueueLength()} ops to finish`,
                 )
                 throw new Error('TooManyPendingOps')
               }
@@ -173,7 +183,10 @@ export default async function firehoseWatcher() {
 
         hasPaused = false
 
-        await enqueueTask(() => processCommit(commit))
+        await enqueueTask(async () => {
+          await processCommit(commit)
+          itemsProcessed++
+        })
       }
     } catch (e) {
       logger.warn(`${e} in firehoseWatcher`)
