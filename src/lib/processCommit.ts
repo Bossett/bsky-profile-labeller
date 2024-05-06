@@ -44,6 +44,11 @@ export async function processCommit(commit: {
     logger.debug(`${seq}: taking too long ${getDebugString()}`)
   }, env.limits.MAX_PROCESSING_TIME_MS / 2)
 
+  if (commit.record['$type'] === 'app.bsky.actor.profile') {
+    logger.debug(`got profile change, purging ${did}`)
+    purgeCacheForDid(did)
+  }
+
   debugString = `getting userDetails for ${did}`
   const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
     await getUserDetails(did)
@@ -96,8 +101,6 @@ export async function processCommit(commit: {
     case 'app.bsky.graph.follow':
       break
     case 'app.bsky.actor.profile':
-      logger.debug(`got profile change, purging ${did}`)
-      purgeCacheForDid(did)
       break
 
     default:
