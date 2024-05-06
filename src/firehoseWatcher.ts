@@ -30,6 +30,8 @@ export default async function firehoseWatcher() {
 
   const firstRun = Date.now()
 
+  let willRestartOnUnpause = false
+
   const interval = async () => {
     await wait(15000)
     do {
@@ -40,8 +42,7 @@ export default async function firehoseWatcher() {
 
       const deltaLag = lastLag - lag
       let timeToRealtimeStr = 'initialising'
-
-      let throwOnNotCatchingUp = false
+      let isSlowingDown = false
 
       const speed = (seq - old_seq) / (interval_ms / 1000)
 
@@ -50,10 +51,10 @@ export default async function firehoseWatcher() {
         if (timeToRealtime > interval_ms && lastLag !== 0) {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
-        throwOnNotCatchingUp = false
+        isSlowingDown = false
       } else if (lastLag !== 0) {
         timeToRealtimeStr = `not catching up`
-        throwOnNotCatchingUp = true
+        isSlowingDown = true
       }
 
       if (lag < 60000) timeToRealtimeStr = `real time`
@@ -97,9 +98,9 @@ export default async function firehoseWatcher() {
       }
       logger.debug(`unpaused, resuming...`)
 
-      if (speed < stalled_at && throwOnNotCatchingUp) {
+      if (speed < stalled_at && isSlowingDown) {
         logger.error(`firehose stalled at ${speed} ops/s`)
-        throw Error('firehoseWatcherStalled')
+        willRestartOnUnpause = true
       }
 
       wantsPause = false
@@ -109,6 +110,8 @@ export default async function firehoseWatcher() {
   interval()
 
   do {
+    willRestartOnUnpause = false
+
     try {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
@@ -165,6 +168,8 @@ export default async function firehoseWatcher() {
         while (hasPaused && wantsPause) {
           await wait(1000)
         }
+
+        if (willRestartOnUnpause) break
 
         hasPaused = false
 
