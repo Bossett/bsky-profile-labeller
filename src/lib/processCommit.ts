@@ -16,7 +16,7 @@ import logger from '@/lib/logger.js'
 
 import env from '@/lib/env.js'
 
-export async function processCommit(commit: {
+type Commit = {
   record?: any
   atURL: any
   collection?: string | undefined
@@ -24,7 +24,9 @@ export async function processCommit(commit: {
   repo: any
   action?: string
   meta?: any
-}): Promise<void> {
+}
+
+function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (
     !(
       commit.record['$type'] &&
@@ -36,21 +38,28 @@ export async function processCommit(commit: {
         'app.bsky.actor.profile',
       ].includes(commit.record['$type'])
     )
-  )
-    return
+  ) {
+    return {}
+  }
 
   const did: string = `${commit.repo}` || ''
   const seq: number = commit.meta['seq']
 
-  if (did === '') return
-  if (!Number.isSafeInteger(seq)) throw new Error(`Invalid sequence`)
+  if (did === '') return {}
+  if (!Number.isSafeInteger(seq)) return {}
 
   const regexDid = /(did:[^:]+:[^\/]+)/
   const matchDid = did.match(regexDid)
   if (!matchDid) {
     logger.debug(`${seq}: invalid did at ${commit.repo}`)
-    return
+    return {}
   }
+  return { seq: seq, did: did }
+}
+
+export async function processCommit(commit: Commit): Promise<void> {
+  const { seq, did } = validateCommit(commit)
+  if (!(seq && did)) return
 
   let debugString = ``
   const getDebugString = () => debugString

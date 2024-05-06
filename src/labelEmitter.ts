@@ -85,14 +85,13 @@ export default async function labelEmitter() {
 
     for (const didForEvent of Object.keys(groupedEvents)) {
       const fn = async () => {
+        const did = `${didForEvent}`
         const negateLabelVals = Array.from(
-          new Set([
-            ...groupedEvents[didForEvent].eventInput.event.negateLabelVals,
-          ]),
+          new Set([...groupedEvents[did].eventInput.event.negateLabelVals]),
         )
         const createLabelVals = Array.from(
           new Set(
-            groupedEvents[didForEvent].eventInput.event.createLabelVals.filter(
+            groupedEvents[did].eventInput.event.createLabelVals.filter(
               (val: string) => {
                 return !negateLabelVals.includes(val)
               },
@@ -100,17 +99,15 @@ export default async function labelEmitter() {
           ),
         )
 
-        groupedEvents[didForEvent].eventInput.event.createLabelVals =
-          createLabelVals
+        groupedEvents[did].eventInput.event.createLabelVals = createLabelVals
 
-        groupedEvents[didForEvent].eventInput.event.negateLabelVals =
-          negateLabelVals
+        groupedEvents[did].eventInput.event.negateLabelVals = negateLabelVals
 
-        if (await emitAccountReport(groupedEvents[didForEvent].eventInput)) {
-          groupedEvents[didForEvent].eventIds.forEach((id: number) =>
-            completedEvents.add(id),
-          )
-          purgeCacheForDid(didForEvent)
+        if (await emitAccountReport(groupedEvents[did].eventInput)) {
+          groupedEvents[did].eventIds.forEach((id: number) => {
+            completedEvents.add(id)
+          })
+          purgeCacheForDid(did)
         }
         return
       }
