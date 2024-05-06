@@ -30,7 +30,7 @@ const limits = {
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 100, // sets the limit parameter requesting an author's posts - 100 is the api limit
   DB_WRITE_INTERVAL_MS: 5 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally betterm but you will have to reprocess this much on restart
-  MAX_CONCURRENT_PROCESSCOMMITS: 32, // this influences # of http requests, so lower can be faster
+  MAX_CONCURRENT_PROCESSCOMMITS: 512, // this influences # of http requests, so lower can be faster
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
