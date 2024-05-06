@@ -1,4 +1,5 @@
 export default function formatDuration(ms: number): string {
+  if (isNaN(ms)) return '0.00s'
   if (ms < 0) ms = -ms
 
   const time = {
@@ -31,5 +32,5 @@ export default function formatDuration(ms: number): string {
     }
   }
 
-  return output || '0.00s'
+  return output.replace(/^0+(?!\.)/, '') || '0.00s'
 }
