@@ -29,14 +29,17 @@ type Commit = {
 function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (
     !(
-      commit.record['$type'] &&
-      [
-        'app.bsky.feed.post',
-        'app.bsky.feed.like',
-        'app.bsky.feed.repost',
-        'app.bsky.graph.follow',
-        'app.bsky.actor.profile',
-      ].includes(commit.record['$type'])
+      (commit.record['$type'] &&
+        [
+          'app.bsky.feed.post',
+          'app.bsky.feed.like',
+          'app.bsky.feed.repost',
+          'app.bsky.graph.follow',
+          'app.bsky.actor.profile',
+        ].includes(commit.record['$type'])) ||
+      ['com.atproto.sync.subscribeRepos#identity'].includes(
+        commit.meta['$type'],
+      )
     )
   ) {
     return {}
