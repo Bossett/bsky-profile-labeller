@@ -4,7 +4,7 @@ const limits = {
   AUTH_LIMIT_MAX_RATE: 20,
   AUTH_LIMIT_RATE_INTERVAL_MS: 300 * 1000,
   AUTHOR_FEED_MAX_RESULTS: 100,
-  DB_WRITE_INTERVAL_MS: 3 * 60 * 1000,
+  DB_WRITE_INTERVAL_MS: 5 * 60 * 1000,
   MAX_CONCURRENT_PROCESSCOMMITS: 64,
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000,
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000,
@@ -36,7 +36,7 @@ const validateLimits = {
     limits.PAUSE_TIMEOUT_MS > limits.MAX_PROCESSING_TIME_MS,
   'Database writer interval must be grater than maximum processing time':
     limits.DB_WRITE_INTERVAL_MS > limits.MAX_PROCESSING_TIME_MS,
-  'Pause timeout must be greater than database writer interval':
+  'Pause timeout must be less than database writer interval':
     limits.PAUSE_TIMEOUT_MS < limits.DB_WRITE_INTERVAL_MS,
 }
 
