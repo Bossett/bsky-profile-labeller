@@ -67,7 +67,7 @@ interface Params {
   watchedFrom: number
 }
 
-async function _getNewLabel({
+export async function getNewLabel({
   did,
   rkey,
   watchedFrom,
@@ -212,11 +212,3 @@ async function _getNewLabel({
 
   return { create: Array.from(createLabels), remove: Array.from(removeLabels) }
 }
-
-export const getNewLabel = moize(_getNewLabel, {
-  isPromise: true,
-  maxAge: env.limits.NEW_LABEL_MAX_CACHE_AGE_MS,
-  maxArgs: 1, // Ensure that moize uses only the first argument (DID) for caching
-  updateExpire: true,
-  isShallowEqual: true,
-})
