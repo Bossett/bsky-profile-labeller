@@ -67,11 +67,11 @@ const _retrylimit = pRateLimit({
   maxDelay: env.limits.PUBLIC_LIMIT_MAX_DELAY_MS,
 })
 
-export const reportLimit = pRateLimit({
-  interval: env.limits.REPORT_LIMIT_RATE_INTERVAL_MS,
-  rate: env.limits.REPORT_LIMIT_MAX_RATE,
-  concurrency: env.limits.REPORT_LIMIT_MAX_CONCURRENT,
-  maxDelay: env.limits.REPORT_LIMIT_MAX_DELAY_MS,
+export const authLimit = pRateLimit({
+  interval: env.limits.AUTH_LIMIT_RATE_INTERVAL_MS,
+  rate: env.limits.AUTH_LIMIT_MAX_RATE,
+  concurrency: env.limits.AUTH_LIMIT_MAX_CONCURRENT,
+  maxDelay: env.limits.AUTH_LIMIT_MAX_DELAY_MS,
 })
 
 export const retryLimit = async <T>(

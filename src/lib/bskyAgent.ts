@@ -1,6 +1,8 @@
 import { BskyAgent } from '@atproto/api'
 import env from '@/lib/env.js'
 
+import { authLimit } from '@/lib/rateLimit.js'
+
 const _agent = new BskyAgent({ service: env.LABELLER_SERVICE })
 
 const _reauth = async (agent: BskyAgent) => {
@@ -18,9 +20,11 @@ const _reauth = async (agent: BskyAgent) => {
 if (!(await _reauth(_agent))) throw 'Agent Authentication Failed'
 
 export const agentDid: string = (
-  await _agent.com.atproto.identity.resolveHandle({
-    handle: env.LABELLER_HANDLE,
-  })
+  await authLimit(() =>
+    _agent.com.atproto.identity.resolveHandle({
+      handle: env.LABELLER_HANDLE,
+    }),
+  )
 ).data.did
 
 BskyAgent.configure({
