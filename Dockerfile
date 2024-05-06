@@ -1,7 +1,9 @@
 FROM node:20 as build
 WORKDIR /app
-COPY . .
+COPY ./package.json .
+COPY ./yarn.lock .
 RUN yarn install
+COPY . .
 RUN yarn validLimits
 RUN yarn build
 
