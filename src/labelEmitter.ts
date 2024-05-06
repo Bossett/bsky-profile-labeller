@@ -85,6 +85,27 @@ export default async function labelEmitter() {
 
     for (const didForEvent of Object.keys(groupedEvents)) {
       const fn = async () => {
+        const negateLabelVals = Array.from(
+          new Set([
+            ...groupedEvents[didForEvent].eventInput.event.negateLabelVals,
+          ]),
+        )
+        const createLabelVals = Array.from(
+          new Set(
+            groupedEvents[didForEvent].eventInput.event.createLabelVals.filter(
+              (val: string) => {
+                return !negateLabelVals.includes(val)
+              },
+            ),
+          ),
+        )
+
+        groupedEvents[didForEvent].eventInput.event.createLabelVals =
+          createLabelVals
+
+        groupedEvents[didForEvent].eventInput.event.negateLabelVals =
+          negateLabelVals
+
         if (await emitAccountReport(groupedEvents[didForEvent].eventInput)) {
           groupedEvents[didForEvent].eventIds.forEach((id: number) =>
             completedEvents.add(id),
