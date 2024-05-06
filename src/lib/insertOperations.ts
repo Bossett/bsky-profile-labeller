@@ -12,6 +12,11 @@ const operationsSet = new Set()
 
 let insertTimeout: NodeJS.Timeout | null = null
 
+export interface OperationsResult {
+  create: string[]
+  remove: string[]
+}
+
 function getOpKey(operation: operationType) {
   return JSON.stringify({
     label: operation.label,

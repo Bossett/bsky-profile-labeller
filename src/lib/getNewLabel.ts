@@ -4,6 +4,8 @@ import {
   AppBskyFeedGetPosts,
 } from '@atproto/api'
 
+import { OperationsResult } from '@/lib/insertOperations.js'
+
 import { plcLimit, retryLimit } from '@/lib/rateLimit.js'
 import env from '@/lib/env.js'
 import logger from '@/lib/logger.js'
@@ -65,16 +67,11 @@ interface Params {
   watchedFrom: number
 }
 
-interface Result {
-  create?: string[]
-  remove?: string[]
-}
-
 async function _getNewLabel({
   did,
   rkey,
   watchedFrom,
-}: Params): Promise<Result> {
+}: Params): Promise<OperationsResult> {
   const post = `at://${did}/app.bsky.feed.post/${rkey}`
 
   const createLabels = new Set<string>()
@@ -84,6 +81,8 @@ async function _getNewLabel({
 
   let authorFeed: AppBskyFeedDefs.FeedViewPost[] = []
   let isFullFeedHistory = false
+
+  const labelResult: OperationsResult = { create: [], remove: [] }
 
   try {
     const res = await moizedFetch(
@@ -98,16 +97,16 @@ async function _getNewLabel({
   } catch (e) {
     logger.debug(`${e.message} reading feed for ${did}`)
     if (`${e.message}` === 'fetch failed') throw e
-    return {}
+    return labelResult
   }
 
-  if (!authorFeed || authorFeed.length === 0) return {} // no posts, no labels
+  if (!authorFeed || authorFeed.length === 0) return labelResult // no posts, no labels
 
   authorFeed = authorFeed.filter(
     (record) => record.reason?.$type !== 'app.bsky.feed.defs#reasonRepost',
   )
 
-  if (authorFeed.length === 0) return {} // we had reposts only, no labels
+  if (authorFeed.length === 0) return labelResult // we had reposts only, no labels
 
   authorFeed.sort((a, b) => {
     const a_val = a.reason?.indexedAt

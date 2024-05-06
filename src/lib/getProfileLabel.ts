@@ -1,10 +1,12 @@
 import { AppBskyActorDefs, ComAtprotoLabelDefs } from '@atproto/api'
 
+import { OperationsResult } from '@/lib/insertOperations.js'
+
 export async function getProfileLabel(
   profile: AppBskyActorDefs.ProfileViewDetailed,
   currentLabels: ComAtprotoLabelDefs.Label[],
-): Promise<{ create?: string[]; remove?: string[] }> {
-  const operations: { create: string[]; remove: string[] } = {
+): Promise<OperationsResult> {
+  const operations: OperationsResult = {
     create: [],
     remove: [],
   }

@@ -1,4 +1,5 @@
 import { ComAtprotoLabelDefs } from '@atproto/api'
+import { OperationsResult } from '@/lib/insertOperations.js'
 
 interface Params {
   labels: ComAtprotoLabelDefs.Label[]
@@ -7,20 +8,15 @@ interface Params {
   handlesToExpire: string[]
 }
 
-interface Result {
-  create?: string[]
-  remove?: string[]
-}
-
 export async function getExpiringLabels({
   labels,
   labeller,
   watchedFrom,
   handlesToExpire,
-}: Params): Promise<Result> {
+}: Params): Promise<OperationsResult> {
   if (!labeller) return { create: [], remove: [] }
 
-  const operations: { create: string[]; remove: string[] } = {
+  const operations: OperationsResult = {
     create: [],
     remove: [],
   }

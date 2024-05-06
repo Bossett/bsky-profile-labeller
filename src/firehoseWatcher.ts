@@ -109,56 +109,55 @@ export default async function firehoseWatcher() {
           seq = commit.meta['seq']
           lag = Date.now() - new Date(commit.meta['time']).getTime()
         }
-        if (commit.record['$type'] === 'app.bsky.feed.post' && commit.atURL) {
-          if (wantsPause && !hasPaused) {
-            let waitCycles = 0
-            while (await wait(1000)) {
-              if (getQueueLength() === 0) {
-                hasPaused = true
-                logger.debug(`paused waiting for sequence update`)
-                break
-              } else {
-                const alertEvery = Math.floor(
-                  env.limits.PAUSE_TIMEOUT_MS / 1000 / 5,
+
+        if (wantsPause && !hasPaused) {
+          let waitCycles = 0
+          while (await wait(1000)) {
+            if (getQueueLength() === 0) {
+              hasPaused = true
+              logger.debug(`paused waiting for sequence update`)
+              break
+            } else {
+              const alertEvery = Math.floor(
+                env.limits.PAUSE_TIMEOUT_MS / 1000 / 5,
+              )
+              const alertThreshold = Math.floor(
+                (env.limits.PAUSE_TIMEOUT_MS / 1000) * 0.7,
+              )
+              if (
+                waitCycles++ % alertEvery === 0 &&
+                waitCycles < alertThreshold
+              ) {
+                logger.debug(
+                  `pausing, waiting for ${getQueueLength()} ops to finish...`,
                 )
-                const alertThreshold = Math.floor(
-                  (env.limits.PAUSE_TIMEOUT_MS / 1000) * 0.7,
+                forceProcess()
+              }
+              if (
+                waitCycles++ % alertEvery === 0 &&
+                waitCycles >= alertThreshold
+              ) {
+                logger.warn(
+                  `waiting too long for ${getQueueLength()} ops to finish`,
                 )
-                if (
-                  waitCycles++ % alertEvery === 0 &&
-                  waitCycles < alertThreshold
-                ) {
-                  logger.debug(
-                    `pausing, waiting for ${getQueueLength()} ops to finish...`,
-                  )
-                  forceProcess()
-                }
-                if (
-                  waitCycles++ % alertEvery === 0 &&
-                  waitCycles >= alertThreshold
-                ) {
-                  logger.warn(
-                    `waiting too long for ${getQueueLength()} ops to finish`,
-                  )
-                }
-                if (waitCycles > env.limits.PAUSE_TIMEOUT_MS / 1000) {
-                  logger.error(
-                    `too many retry cycles waiting for ${getQueueLength()} ops to finish`,
-                  )
-                  throw new Error('TooManyPendingOps')
-                }
+              }
+              if (waitCycles > env.limits.PAUSE_TIMEOUT_MS / 1000) {
+                logger.error(
+                  `too many retry cycles waiting for ${getQueueLength()} ops to finish`,
+                )
+                throw new Error('TooManyPendingOps')
               }
             }
-            waitCycles = 0
           }
-          while (hasPaused && wantsPause) {
-            await wait(1000)
-          }
-
-          hasPaused = false
-
-          await enqueueTask(() => processCommit(commit))
+          waitCycles = 0
         }
+        while (hasPaused && wantsPause) {
+          await wait(1000)
+        }
+
+        hasPaused = false
+
+        await enqueueTask(() => processCommit(commit))
       }
     } catch (e) {
       logger.warn(`${e} in firehoseWatcher`)
