@@ -97,7 +97,9 @@ function isExpiredResult(result: pendingResults) {
 
   if (
     result.completedDate.getTime() <
-    Date.now() - env.limits.USER_DETAILS_MAX_AGE_MS
+    Date.now() -
+      (env.limits.USER_DETAILS_MIN_AGE_MS +
+        Math.floor(Math.random() * env.limits.USER_DETAILS_MIN_AGE_MS))
   ) {
     return true
   } else return false
@@ -174,7 +176,7 @@ async function getUserDetails(
       const data = result.data
       if (data?.did) {
         if (cacheHit) globalCacheHit++
-        return structuredClone(data) as AppBskyActorDefs.ProfileViewDetailed
+        return data as AppBskyActorDefs.ProfileViewDetailed
       }
     } else {
       globalCacheMiss++

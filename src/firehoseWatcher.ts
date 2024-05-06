@@ -1,7 +1,11 @@
 import FirehoseIterable from './lib/firehoseIterable.js'
 import logger from '@/lib/logger.js'
 import wait from '@/lib/wait.js'
-import { enqueueTask, getQueueLength, forceProcess } from '@/lib/rateLimit.js'
+import {
+  enqueueTask,
+  getQueueLength,
+  forceProcessQueue,
+} from '@/lib/rateLimit.js'
 import formatDuration from '@/lib/formatDuration.js'
 
 import { cacheStatistics } from '@/lib/getUserDetails.js'
@@ -35,8 +39,7 @@ export default async function firehoseWatcher() {
   let itemsProcessed = 0
 
   const interval = async () => {
-    await wait(15000)
-    do {
+    while (await wait(interval_ms - (Date.now() % interval_ms))) {
       wantsPause = true
       while (hasPaused === false) {
         await wait(1000)
@@ -113,7 +116,7 @@ export default async function firehoseWatcher() {
       }
 
       wantsPause = false
-    } while (await wait(interval_ms))
+    }
   }
 
   interval()
@@ -145,6 +148,8 @@ export default async function firehoseWatcher() {
               logger.debug(`paused waiting for sequence update`)
               break
             } else {
+              forceProcessQueue()
+
               const alertEvery = Math.floor(
                 env.limits.PAUSE_TIMEOUT_MS / 1000 / 5,
               )
@@ -158,7 +163,6 @@ export default async function firehoseWatcher() {
                 logger.debug(
                   `pausing, waiting for ${getQueueLength()} ops to finish...`,
                 )
-                forceProcess()
               }
               if (
                 waitCycles++ % alertEvery === 0 &&
@@ -188,8 +192,30 @@ export default async function firehoseWatcher() {
         hasPaused = false
 
         await enqueueTask(async () => {
-          await processCommit(commit)
-          itemsProcessed++
+          let retries = env.limits.MAX_RETRIES
+          let shouldRetry = true
+
+          while (shouldRetry) {
+            try {
+              await Promise.race([
+                processCommit(commit),
+                new Promise((_, reject) => {
+                  setTimeout(() => {
+                    reject(new Error('CommitTimeout'))
+                  }, env.limits.MAX_PROCESSING_TIME_MS)
+                }),
+              ])
+              shouldRetry = false
+              itemsProcessed++
+            } catch (e) {
+              logger.debug(`retrying commit ${commit['meta'].seq}`)
+              retries--
+              if (retries === 0) {
+                logger.warn(`failing commit ${commit['meta'].seq}`)
+                shouldRetry = false
+              }
+            }
+          }
         })
       }
     } catch (e) {

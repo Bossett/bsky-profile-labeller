@@ -66,6 +66,7 @@ export async function processCommit(commit: Commit): Promise<void> {
 
   let debugString = ``
   const getDebugString = () => debugString
+
   const timeout = setTimeout(() => {
     logger.debug(`${seq}: taking too long ${getDebugString()}`)
   }, env.limits.MAX_PROCESSING_TIME_MS / 2)
