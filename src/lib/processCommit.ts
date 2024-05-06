@@ -25,6 +25,20 @@ export async function processCommit(commit: {
   action?: string
   meta?: any
 }): Promise<void> {
+  if (
+    !(
+      commit.record['$type'] &&
+      [
+        'app.bsky.feed.post',
+        'app.bsky.feed.like',
+        'app.bsky.feed.repost',
+        'app.bsky.graph.follow',
+        'app.bsky.actor.profile',
+      ].includes(commit.record['$type'])
+    )
+  )
+    return
+
   const did: string = `${commit.repo}` || ''
   const seq: number = commit.meta['seq']
 
