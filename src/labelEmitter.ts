@@ -90,13 +90,13 @@ export default async function labelEmitter() {
           new Set([...groupedEvents[did].eventInput.event.negateLabelVals]),
         )
         const createLabelVals = Array.from(
-          new Set(
-            groupedEvents[did].eventInput.event.createLabelVals.filter(
+          new Set([
+            ...groupedEvents[did].eventInput.event.createLabelVals.filter(
               (val: string) => {
                 return !negateLabelVals.includes(val)
               },
             ),
-          ),
+          ]),
         )
 
         groupedEvents[did].eventInput.event.createLabelVals = createLabelVals
@@ -127,9 +127,11 @@ export default async function labelEmitter() {
       await db
         .delete(schema.label_actions)
         .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
-      logger.info(`emitted ${totalEvents} events:`)
+      logger.info(
+        `emitted ${completedEvents.size} labels in ${totalEvents} events:`,
+      )
       for (const event of Object.keys(eventLog)) {
-        logger.info(`  ${event}: ${eventLog[event]}`)
+        logger.info(`- ${event}: ${eventLog[event]}`)
       }
     }
   } while (await wait(5000))

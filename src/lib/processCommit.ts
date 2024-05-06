@@ -157,17 +157,16 @@ export async function processCommit(commit: Commit): Promise<void> {
   })
 
   const handlesToReapply = ['newhandle']
+
   labelOperations.create = labelOperations.create.filter((label) => {
-    if (
-      currentLabels.map((curr) => curr.val).includes(label) &&
-      !handlesToReapply.includes(label)
-    ) {
+    if (!currentLabels.map((curr) => curr.val).includes(label)) {
       // only create labels that are not already on the account
       // UNLESS they are in handlesToReapply
-      logger.debug(`not re-labelling ${did} with ${label}`)
       return false
     } else {
-      return true
+      logger.debug(`not re-labelling ${did} with ${label}`)
+      if (handlesToReapply.includes(label)) return true
+      return false
     }
   })
 
