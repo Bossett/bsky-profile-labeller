@@ -67,6 +67,13 @@ const _retrylimit = pRateLimit({
   maxDelay: env.limits.PUBLIC_LIMIT_MAX_DELAY_MS,
 })
 
+export const reportLimit = pRateLimit({
+  interval: env.limits.REPORT_LIMIT_RATE_INTERVAL_MS,
+  rate: env.limits.REPORT_LIMIT_MAX_RATE,
+  concurrency: env.limits.REPORT_LIMIT_MAX_CONCURRENT,
+  maxDelay: env.limits.REPORT_LIMIT_MAX_DELAY_MS,
+})
+
 export const retryLimit = async <T>(
   fn: () => Promise<T>,
   retries = env.limits.MAX_RETRIES,

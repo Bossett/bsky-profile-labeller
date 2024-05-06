@@ -3,7 +3,7 @@ import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/lib/logger.js'
 import env from '@/lib/env.js'
 
-import { pdsLimit } from '@/lib/rateLimit.js'
+import { reportLimit } from '@/lib/rateLimit.js'
 
 export default async function emitAccountReport(
   eventInput: ToolsOzoneModerationEmitEvent.InputSchema,
@@ -18,7 +18,7 @@ export default async function emitAccountReport(
   }
 
   try {
-    await pdsLimit(() =>
+    await reportLimit(() =>
       agent
         .withProxy('atproto_labeler', agentDid)
         .api.tools.ozone.moderation.emitEvent(eventInput),
