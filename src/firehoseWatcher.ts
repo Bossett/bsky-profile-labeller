@@ -6,11 +6,11 @@ import formatDuration from '@/lib/formatDuration.js'
 
 import { cacheStatistics as userDetailsCacheStats } from '@/lib/getUserDetails.js'
 import { cacheStatistics as authorFeedDetailsCacheStats } from '@/lib/getAuthorFeed.js'
-import { cacheStatistics as plcDirectoryCacheStats } from '@/lib/getAuthorFeed.js'
+import { cacheStatistics as plcDirectoryCacheStats } from '@/lib/getPlcRecord.js'
 
 import env from '@/lib/env.js'
 import db, { schema } from '@/db/db.js'
-import { processCommit, validateCommit } from '@/lib/processCommit.js'
+import { processCommit } from '@/lib/processCommit.js'
 
 export default async function firehoseWatcher() {
   let seq: number =
@@ -34,7 +34,10 @@ export default async function firehoseWatcher() {
   let itemsProcessed = 0
 
   const interval = async () => {
-    while (await wait(interval_ms - (Date.now() % interval_ms))) {
+    let cycleInterval = interval_ms - (Date.now() % interval_ms)
+    while (await wait(cycleInterval)) {
+      cycleInterval = interval_ms
+
       const deltaLag = lastLag - lag
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
@@ -42,12 +45,12 @@ export default async function firehoseWatcher() {
       isSlowingDown = false
       timeToRealtimeStr = 'initialising'
 
-      const speed = itemsProcessed / (interval_ms / 1000)
+      const speed = itemsProcessed / (cycleInterval / 1000)
       itemsProcessed = 0
 
       if (deltaLag > 0) {
-        const timeToRealtime = lag / (deltaLag / interval_ms)
-        if (timeToRealtime > interval_ms && lastLag !== 0) {
+        const timeToRealtime = lag / (deltaLag / cycleInterval)
+        if (timeToRealtime > cycleInterval && lastLag !== 0) {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
         isSlowingDown = false
@@ -126,7 +129,7 @@ export default async function firehoseWatcher() {
         timeout: env.limits.MAX_FIREHOSE_DELAY,
         maxPending: Math.max(
           env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 4,
-          10000,
+          15000,
         ),
       })
 
@@ -143,11 +146,6 @@ export default async function firehoseWatcher() {
         if (willRestartOnUnpause) break
 
         itemsProcessed++
-
-        const isValidCommit = validateCommit(commit)
-        if (!(isValidCommit.did && isValidCommit.seq)) {
-          continue
-        }
 
         await processCommit(commit)
       }

@@ -39,15 +39,10 @@ export const retryLimit = async <T>(
     return await _retrylimit(fn)
   } catch (e) {
     if (retries > 0) {
-      logger.debug(
-        `${e.message}, retrying in ${Math.floor(
-          env.limits.MAX_WAIT_RETRY_MS / 1000,
-        )}s...`,
-      )
       await wait(env.limits.MAX_WAIT_RETRY_MS)
       return await retryLimit(fn, retries - 1)
     } else {
-      logger.debug(`failing rate limited call (max retries reached)`)
+      logger.debug(`fetch failed (max retries reached)`)
       throw e
     }
   }

@@ -10,10 +10,10 @@ type pendingResults = {
 }
 
 class CachedFetch {
-  private results = new Map<string, pendingResults>()
-  private maxSize: number = 10000
-  private maxAge: number = 3000
-  private limiter:
+  protected results = new Map<string, pendingResults>()
+  protected maxSize: number = 10000
+  protected maxAge: number = 3000
+  protected limiter:
     | ((fn: () => Promise<any>, retries?: number) => Promise<Response>)
     | undefined
 
@@ -62,7 +62,7 @@ class CachedFetch {
     return 0
   }
 
-  private isExpiredResult(result: pendingResults) {
+  protected isExpiredResult(result: pendingResults) {
     if (result.completedDate === undefined) return false
 
     if (
@@ -74,14 +74,14 @@ class CachedFetch {
     } else return false
   }
 
-  private isFailedResult(result: pendingResults) {
+  protected isFailedResult(result: pendingResults) {
     if (this.isExpiredResult(result)) return false
     return result.failed
   }
 
-  private globalCacheHit = 0
-  private globalCacheMiss = 0
-  private lastScavengeCount = 0
+  protected globalCacheHit = 0
+  protected globalCacheMiss = 0
+  protected lastScavengeCount = 0
 
   public cacheStatistics() {
     const hitRate = () =>
@@ -126,7 +126,6 @@ class CachedFetch {
       logger.debug(`cache purged for ${key}`)
       return true
     } else {
-      logger.debug(`cache too new, not purging for ${key}`)
       return false
     }
   }
@@ -174,6 +173,7 @@ class CachedFetch {
         })
         return json as any
       } catch (e) {
+        if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
         return { error: `failed to fetch (${e.message})` }
       }
     }
