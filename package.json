@@ -42,6 +42,6 @@
     "build": "tsc && tsc-alias",
     "start": "node --expose-gc ./dist/app.js",
     "dev": "tsx --env-file=.env --expose-gc src/app.ts",
-    "validLimits": "tsx src/lib/limits.ts"
+    "validLimits": "tsx src/env/limits.ts"
   }
 }
