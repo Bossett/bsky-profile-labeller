@@ -40,31 +40,33 @@ class CachedFetch {
   }
 
   private trackLimit() {
-    if (this.results.size > this.maxSize * 2) {
-      const initialSize = this.results.size
-      const resultsArray = Array.from(this.results.entries())
+    if (this.results.size < this.maxSize * 2) return 0
+    const initialSize = this.results.size
+    const resultsArray = Array.from(this.results.entries())
 
-      const failedResults = resultsArray.filter((item) => item[1].failed)
+    const failedAndPendingResults = resultsArray.filter(
+      (item) => item[1].failed || !item[1].completedDate,
+    )
 
+    if (failedAndPendingResults.length < this.maxSize) {
       resultsArray.sort((a, b) => {
         const dateA = a[1].completedDate || 0
         const dateB = b[1].completedDate || 0
         return dateB - dateA
       })
-
-      const topResults = [
-        ...resultsArray.slice(0, this.maxSize),
-        ...failedResults,
-      ]
-
-      this.results.clear()
-
-      for (const [key, value] of topResults) {
-        if (!this.isExpiredResult(value)) this.results.set(key, value)
-      }
-      return initialSize - this.results.size
     }
-    return 0
+    const sliceAt = Math.max(this.maxSize - failedAndPendingResults.length, 0)
+    const topResults = [
+      ...failedAndPendingResults.slice(0, this.maxSize),
+      ...resultsArray.slice(0, sliceAt),
+    ]
+
+    this.results.clear()
+
+    for (const [key, value] of topResults) {
+      if (!this.isExpiredResult(value)) this.results.set(key, value)
+    }
+    return initialSize - this.results.size
   }
 
   protected isExpiredResult(result: pendingResults) {
@@ -167,16 +169,27 @@ class CachedFetch {
         let res: Response
         if (this.limiter) res = await this.limiter(() => fetch(url))
         else res = await fetch(url)
-        const json = await res.json()
+        if ([400, 500, 404].includes(res.status)) {
+          const errText = `${res.status}: ${res.statusText}`
+          this.results.set(url, {
+            url: url,
+            failed: true,
+            errorReason: `${errText}`,
+            completedDate: Date.now(),
+          })
+          return { error: `failed to fetch (${errText})` }
+        } else {
+          const json = await res.json()
 
-        this.results.set(url, {
-          url: url,
-          failed: false,
-          data: json as any,
-          completedDate: Date.now(),
-          errorReason: undefined,
-        })
-        return json as any
+          this.results.set(url, {
+            url: url,
+            failed: false,
+            data: json as any,
+            completedDate: Date.now(),
+            errorReason: undefined,
+          })
+          return json as any
+        }
       } catch (e) {
         return { error: `failed to fetch (${e.message})` }
       }
