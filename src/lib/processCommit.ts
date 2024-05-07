@@ -28,6 +28,8 @@ type Commit = {
   meta?: any
 }
 
+const regexDid = /(did:[^:]+:[^\/]+)/
+
 export function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (
     !(
@@ -49,7 +51,6 @@ export function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (did === '') return {}
   if (!Number.isSafeInteger(seq)) return {}
 
-  const regexDid = /(did:[^:]+:[^\/]+)/
   const matchDid = did.match(regexDid)
   if (!matchDid) {
     logger.debug(`${seq}: invalid did at ${commit.repo}`)
@@ -279,25 +280,30 @@ async function queueManager() {
           } else {
             if (!retries) knownBadCommits.set(seq, 1)
             else knownBadCommits.set(seq, retries + 1)
-            processQueue.push(commit)
+            processCommit(commit)
           }
         })
         .finally(() => {
           activeTasks--
         })
     }
-  } while (await wait(100))
+  } while (await wait(1))
 }
 
 queueManager()
 
-export async function processCommit(commit: Commit): Promise<void> {
+export async function processCommit(commit: Commit): Promise<boolean> {
+  while (
+    processQueue.length >=
+    env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 1.2
+  ) {
+    await wait(1)
+  }
+
   const isValidCommit = validateCommit(commit)
   if (isValidCommit.did && isValidCommit.seq) {
     processQueue.push(commit)
   }
 
-  while (processQueue.length >= env.limits.MAX_CONCURRENT_PROCESSCOMMITS) {
-    await wait(100)
-  }
+  return isValidCommit.did ? true : false
 }

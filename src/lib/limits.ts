@@ -19,7 +19,7 @@ const limits = {
   PLC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for public API
-  PUBLIC_LIMIT_MAX_CONCURRENT: 80,
+  PUBLIC_LIMIT_MAX_CONCURRENT: 96,
   PUBLIC_LIMIT_MAX_DELAY_MS: undefined, // 30 * 1000,
   PUBLIC_LIMIT_MAX_RATE: 250_000,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
@@ -29,7 +29,7 @@ const limits = {
 
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 100, // sets the limit parameter requesting an author's posts - 100 is the api limit
-  DB_WRITE_INTERVAL_MS: 2 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
+  DB_WRITE_INTERVAL_MS: 3 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
   MAX_CONCURRENT_PROCESSCOMMITS: 384, // this influences # of http requests, so lower can be faster
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled

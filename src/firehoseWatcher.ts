@@ -32,6 +32,7 @@ export default async function firehoseWatcher() {
   let willRestartOnUnpause = false
 
   let itemsProcessed = 0
+  let itemsSkipped = 0
 
   const interval = async () => {
     let cycleInterval = interval_ms - (Date.now() % interval_ms)
@@ -45,8 +46,9 @@ export default async function firehoseWatcher() {
       isSlowingDown = false
       timeToRealtimeStr = 'initialising'
 
-      const speed = itemsProcessed / (cycleInterval / 1000)
-      itemsProcessed = 0
+      const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
+      const skippedItems = itemsSkipped
+      const totalItems = itemsProcessed + itemsSkipped
 
       if (deltaLag > 0) {
         const timeToRealtime = lag / (deltaLag / cycleInterval)
@@ -75,6 +77,7 @@ export default async function firehoseWatcher() {
         `${timeToRealtimeStr} at ${speed.toFixed(
           2,
         )}ops/s, running ${formatDuration(Date.now() - firstRun)}`,
+        `${totalItems} items: ${itemsProcessed} processed, ${skippedItems} skipped `,
         `details cache: ${detailsCacheStats.items()} items ${detailsCacheStats
           .hitRate()
           .toFixed(2)}% hit (${detailsCacheStats.recentExpired()} expired)`,
@@ -115,6 +118,9 @@ export default async function firehoseWatcher() {
         logger.error(`firehose stalled at ${speed} ops/s`)
         willRestartOnUnpause = true
       }
+
+      itemsSkipped = 0
+      itemsProcessed = 0
     }
   }
 
@@ -134,20 +140,18 @@ export default async function firehoseWatcher() {
       })
 
       for await (const commit of firehose) {
-        if (Number.isSafeInteger(commit.meta['seq'])) {
-          const commitTime = new Date(commit.meta['time']).getTime()
-          seq = commit.meta['seq']
-          lag =
-            lag !== 0
-              ? (lag + (Date.now() - commitTime)) / 2
-              : Date.now() - commitTime
-        } else continue
+        if (!Number.isSafeInteger(commit.meta['seq'])) continue
+
+        const commitTime = new Date(commit.meta['time']).getTime()
+        lag =
+          lag !== 0
+            ? (lag + (Date.now() - commitTime)) / 2
+            : Date.now() - commitTime
 
         if (willRestartOnUnpause) break
 
-        itemsProcessed++
-
-        await processCommit(commit)
+        if (await processCommit(commit)) itemsProcessed++
+        else itemsSkipped++
       }
     } catch (e) {
       logger.warn(`${e} in firehoseWatcher`)
