@@ -6,6 +6,7 @@ import formatDuration from '@/lib/formatDuration.js'
 
 import { cacheStatistics as userDetailsCacheStats } from '@/lib/getUserDetails.js'
 import { cacheStatistics as authorFeedDetailsCacheStats } from '@/lib/getAuthorFeed.js'
+import { cacheStatistics as plcDirectoryCacheStats } from '@/lib/getAuthorFeed.js'
 
 import env from '@/lib/env.js'
 import db, { schema } from '@/db/db.js'
@@ -64,6 +65,7 @@ export default async function firehoseWatcher() {
 
       const detailsCacheStats = userDetailsCacheStats()
       const authorFeedCacheStats = authorFeedDetailsCacheStats()
+      const plcCacheStats = plcDirectoryCacheStats()
 
       const logLines = [
         `at seq: ${seq} with lag ${formatDuration(lag)}`,
@@ -76,6 +78,9 @@ export default async function firehoseWatcher() {
         `author feed cache: ${authorFeedCacheStats.items()} items ${authorFeedCacheStats
           .hitRate()
           .toFixed(2)}% hit (${authorFeedCacheStats.recentExpired()} expired)`,
+        `plc directory cache: ${plcCacheStats.items()} items ${plcCacheStats
+          .hitRate()
+          .toFixed(2)}% hit (${plcCacheStats.recentExpired()} expired)`,
       ]
 
       for (const line of logLines) {
@@ -119,7 +124,10 @@ export default async function firehoseWatcher() {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
-        maxPending: env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 4,
+        maxPending: Math.max(
+          env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 4,
+          10000,
+        ),
       })
 
       for await (const commit of firehose) {

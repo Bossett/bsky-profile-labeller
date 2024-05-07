@@ -175,14 +175,24 @@ function scavengeExpired() {
   }
 }
 
-export function purgeCacheForDid(did: string) {
+export function purgeCacheForDid(did: string, time?: number) {
   if (!did) return
+  if (!time) time = Date.now()
 
-  results.set(did, {
-    ...(results.get(did) as pendingResults),
-    completedDate: 0,
-  })
-  logger.debug(`cache purged for ${did}`)
+  const res = results.get(did)
+  if (!res) return
+
+  if ((res.completedDate ? res.completedDate : 0) < time) {
+    results.set(did, {
+      ...(results.get(did) as pendingResults),
+      completedDate: 0,
+    })
+    logger.debug(`cache purged for ${did}`)
+    return true
+  } else {
+    logger.debug(`cache too new, not purging for ${did}`)
+    return false
+  }
 }
 
 async function getUserDetails(

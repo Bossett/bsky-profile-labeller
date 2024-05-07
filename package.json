@@ -20,7 +20,6 @@
     "denque": "^2.1.0",
     "drizzle-orm": "^0.30.9",
     "express": "^4.18.3",
-    "moize": "^6.1.6",
     "multiformats": "9.9.0",
     "p-ratelimit": "^1.0.1",
     "postgres": "^3.4.4",

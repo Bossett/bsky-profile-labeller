@@ -4,6 +4,7 @@ import getUserDetails, {
   purgeCacheForDid as purgeDetailsCache,
 } from '@/lib/getUserDetails.js'
 import { purgeCacheForDid as purgeAuthorFeedCache } from '@/lib/getAuthorFeed.js'
+import { purgeCacheForDid as purgePlcDirectoryCache } from '@/lib/getPlcRecord.js'
 import { getExpiringLabels } from '@/lib/getExpiringLabels.js'
 import {
   OperationsResult,
@@ -75,13 +76,17 @@ export async function _processCommit(commit: Commit): Promise<void> {
     setStalled()
   }, env.limits.MAX_PROCESSING_TIME_MS / 2)
 
+  if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
+    if (purgePlcDirectoryCache(did, new Date(commit.meta.time).getTime()))
+      logger.debug(`got identity change, purging plc cache of ${did}`)
+  }
   if (commit.record['$type'] === 'app.bsky.actor.profile') {
-    logger.debug(`got profile change, purging ${did}`)
-    purgeDetailsCache(did)
+    if (purgeDetailsCache(did, new Date(commit.meta.time).getTime()))
+      logger.debug(`got profile change, purging profile cache of ${did}`)
   }
   if (commit.record['$type'] === 'app.bsky.feed.post') {
-    if (purgeAuthorFeedCache(did, new Date(commit.record.createdAt)))
-      logger.debug(`got post change, purging ${did}`)
+    if (purgeAuthorFeedCache(did, new Date(commit.meta.time).getTime()))
+      logger.debug(`got post, purging feed cache of ${did}`)
   }
 
   debugString = `getting userDetails for ${did}`

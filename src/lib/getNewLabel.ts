@@ -6,63 +6,12 @@ import {
 
 import { OperationsResult } from '@/lib/insertOperations.js'
 
-import { plcLimit, retryLimit } from '@/lib/rateLimit.js'
+import { retryLimit } from '@/lib/rateLimit.js'
 import env from '@/lib/env.js'
 import logger from '@/lib/logger.js'
 
-import moize from 'moize'
-
 import getAuthorFeed from '@/lib/getAuthorFeed.js'
-
-const moizedFetch = moize(
-  (uri) =>
-    retryLimit(async () => {
-      return (await fetch(uri)).json()
-    }),
-  {
-    isPromise: true,
-    maxAge: env.limits.MOIZED_FETCH_MAX_AGE_MS,
-  },
-)
-
-async function getPlcRecord(did: string) {
-  let res: Response | undefined
-  try {
-    res = await plcLimit(() => fetch(`${env.PLC_DIRECTORY}/${did}/log/audit`))
-  } catch (e) {
-    res = undefined
-    logger.debug(`${e.message} reading PLC record for ${did}`)
-  }
-
-  if (res === undefined) return []
-
-  const plcJson = (await res.json()) as {
-    did: string
-    createdAt: string
-    operation: { alsoKnownAs?: string[] }
-  }[]
-
-  const handles: { handle: string; createdAt: Date }[] = []
-
-  plcJson.sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
-
-  let previousHandle: string = ''
-
-  for (const op of plcJson) {
-    if (op.operation?.alsoKnownAs === undefined) break
-    const handle = op.operation.alsoKnownAs[0]?.split('at://')[1]
-    const createdAt = new Date(op.createdAt)
-
-    if (handle !== previousHandle) {
-      previousHandle = handle
-      handles.push({ handle: handle, createdAt: createdAt })
-    }
-  }
-
-  return handles
-}
+import getPlcRecord from '@/lib/getPlcRecord.js'
 
 interface Params {
   did: string
@@ -173,11 +122,15 @@ export async function getNewLabel({
         postAfterChange === false
       ) {
         try {
-          const res = await moizedFetch(
-            `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts` +
-              `?uris=${post}`,
+          const res = await retryLimit(
+            async () =>
+              await fetch(
+                `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts` +
+                  `?uris=${post}`,
+              ),
           )
-          const data = res as AppBskyFeedGetPosts.OutputSchema
+
+          const data = (await res.json()) as AppBskyFeedGetPosts.OutputSchema
 
           if (data.posts.length !== 0) {
             const thisPost = data.posts[0]?.indexedAt
