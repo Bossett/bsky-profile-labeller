@@ -3,59 +3,6 @@ import logger from '@/lib/logger.js'
 import wait from '@/lib/wait.js'
 import env from '@/lib/env.js'
 
-const maxConcurrentTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
-
-const taskQueue: (() => Promise<any>)[] = []
-let activeTasks = 0
-
-let isQueueRunning = false
-
-export const enqueueTask = async (task: () => Promise<any>) => {
-  taskQueue.push(async () => {
-    await task()
-    activeTasks--
-  })
-  if (taskQueue.length >= maxConcurrentTasks) return await processQueue()
-}
-
-async function processQueue(force: boolean = false) {
-  if (isQueueRunning && !force) return
-  do {} while (!force && activeTasks >= maxConcurrentTasks && (await wait(50)))
-
-  isQueueRunning = true
-  const promiseQueue: Promise<any>[] = []
-
-  while (taskQueue.length > 0) {
-    const task = taskQueue.pop()
-    if (task) {
-      promiseQueue.push(task())
-      activeTasks++
-    }
-  }
-
-  if (promiseQueue.length > 0)
-    logger.debug(`executing ${promiseQueue.length} tasks`)
-  for (let i = 0; i < promiseQueue.length; i += maxConcurrentTasks) {
-    do {} while (
-      !force &&
-      activeTasks >= maxConcurrentTasks &&
-      (await wait(50))
-    )
-    const promisesChunk = promiseQueue.slice(i, i + maxConcurrentTasks)
-    await Promise.any(promisesChunk)
-  }
-  isQueueRunning = false
-}
-
-export function forceProcessQueue() {
-  logger.debug(`queue is being forced with ${taskQueue.length} tasks`)
-  processQueue(true)
-}
-
-export function getQueueLength() {
-  return taskQueue.length + activeTasks
-}
-
 export const plcLimit = pRateLimit({
   interval: env.limits.PLC_LIMIT_RATE_INTERVAL_MS,
   rate: env.limits.PLC_LIMIT_MAX_RATE,

@@ -14,18 +14,22 @@ export default class FirehoseIterable {
   private service: string
   private timeout: number
   private seq: number
+  private maxPending: number
 
   async create({
     service,
     seq,
     timeout,
+    maxPending,
   }: {
     service?: string
     seq?: number
     timeout?: number
+    maxPending?: number
   } = {}) {
     this.service = service || 'wss://bsky.network'
     this.timeout = timeout || 10000
+    this.maxPending = maxPending || 5000
 
     if (seq && Number.isSafeInteger(seq)) this.seq = seq
     else this.seq = 0
@@ -49,9 +53,9 @@ export default class FirehoseIterable {
 
   async readFirehose(sub: Subscription) {
     for await (const frame of sub) {
-      // prevent memory leak by keeping queue to ~10000
+      // prevent memory leak by keeping queue to ~5000
       // need to adjust to the best values to *just* keep the ws alive
-      const [maxWait, maxQueue, scaleFromPer] = [500, 10000, 0.8]
+      const [maxWait, maxQueue, scaleFromPer] = [1500, this.maxPending, 0.8]
       const scaleFrom = maxQueue * scaleFromPer
       const waitTime = Math.floor(
         Math.min(

@@ -1,20 +1,20 @@
 import { getNewLabel } from '@/lib/getNewLabel.js'
 import { getProfileLabel } from '@/lib/getProfileLabel.js'
-import getUserDetails, { purgeCacheForDid } from '@/lib/getUserDetails.js'
+import getUserDetails, {
+  purgeCacheForDid as purgeDetailsCache,
+} from '@/lib/getUserDetails.js'
+import { purgeCacheForDid as purgeAuthorFeedCache } from '@/lib/getAuthorFeed.js'
 import { getExpiringLabels } from '@/lib/getExpiringLabels.js'
-
 import {
   OperationsResult,
   insertOperations,
   operationType,
 } from '@/lib/insertOperations.js'
 import { AppBskyActorDefs } from '@atproto/api'
-
 import { agentDid } from '@/lib/bskyAgent.js'
-
 import logger from '@/lib/logger.js'
-
 import env from '@/lib/env.js'
+import wait from '@/lib/wait.js'
 
 type Commit = {
   record?: any
@@ -26,17 +26,13 @@ type Commit = {
   meta?: any
 }
 
-function validateCommit(commit: Commit): { seq?: number; did?: string } {
+export function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (
     !(
       (commit.record['$type'] &&
-        [
-          'app.bsky.feed.post',
-          'app.bsky.feed.like',
-          'app.bsky.feed.repost',
-          'app.bsky.graph.follow',
-          'app.bsky.actor.profile',
-        ].includes(commit.record['$type'])) ||
+        ['app.bsky.feed.post', 'app.bsky.actor.profile'].includes(
+          commit.record['$type'],
+        )) ||
       ['com.atproto.sync.subscribeRepos#identity'].includes(
         commit.meta['$type'],
       )
@@ -60,20 +56,32 @@ function validateCommit(commit: Commit): { seq?: number; did?: string } {
   return { seq: seq, did: did }
 }
 
-export async function processCommit(commit: Commit): Promise<void> {
+export async function _processCommit(commit: Commit): Promise<void> {
   const { seq, did } = validateCommit(commit)
   if (!(seq && did)) return
 
+  let isStalled = false
+
   let debugString = ``
   const getDebugString = () => debugString
+  const setStalled = () => {
+    isStalled = true
+    currentStalled++
+  }
 
   const timeout = setTimeout(() => {
-    logger.debug(`${seq}: taking too long ${getDebugString()}`)
+    logger.debug(`${seq}: taking too long ${getDebugString()}, setting stalled`)
+
+    setStalled()
   }, env.limits.MAX_PROCESSING_TIME_MS / 2)
 
   if (commit.record['$type'] === 'app.bsky.actor.profile') {
     logger.debug(`got profile change, purging ${did}`)
-    purgeCacheForDid(did)
+    purgeDetailsCache(did)
+  }
+  if (commit.record['$type'] === 'app.bsky.feed.post') {
+    if (purgeAuthorFeedCache(did, new Date(commit.record.createdAt)))
+      logger.debug(`got post change, purging ${did}`)
   }
 
   debugString = `getting userDetails for ${did}`
@@ -214,6 +222,23 @@ export async function processCommit(commit: Commit): Promise<void> {
     await insertOperations(operations)
   }
 
+  if (isStalled) currentStalled--
+
   clearTimeout(timeout)
   return
+}
+
+const maxConcurrent = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
+let currentProcesses = 0
+let currentStalled = 0
+
+export async function processCommit(commit: Commit): Promise<void> {
+  while (
+    currentProcesses >=
+    maxConcurrent - Math.min(currentStalled, maxConcurrent / 5)
+  ) {
+    await wait(10)
+  }
+  currentProcesses++
+  _processCommit(commit).finally(() => currentProcesses--)
 }

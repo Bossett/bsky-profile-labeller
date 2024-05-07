@@ -12,12 +12,15 @@ import logger from '@/lib/logger.js'
 
 import moize from 'moize'
 
+import getAuthorFeed from '@/lib/getAuthorFeed.js'
+
 const moizedFetch = moize(
   (uri) =>
     retryLimit(async () => {
       return (await fetch(uri)).json()
     }),
   {
+    isPromise: true,
     maxAge: env.limits.MOIZED_FETCH_MAX_AGE_MS,
   },
 )
@@ -84,20 +87,17 @@ export async function getNewLabel({
 
   const labelResult: OperationsResult = { create: [], remove: [] }
 
-  try {
-    const res = await moizedFetch(
-      `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getAuthorFeed` +
-        `?actor=${did}&` +
-        `limit=${limit}&` +
-        `filter=posts_with_replies`,
-    )
-    const data = res as AppBskyFeedGetAuthorFeed.OutputSchema
-    authorFeed = data.feed
-    isFullFeedHistory = data.cursor ? false : true
-  } catch (e) {
-    logger.debug(`${e.message} reading feed for ${did}`)
-    if (`${e.message}` === 'fetch failed') throw e
+  const data = await getAuthorFeed(did)
+
+  if (data.error) {
+    logger.debug(`${data.error} fetching feed for ${did}`)
     return labelResult
+  } else {
+    authorFeed = (data as AppBskyFeedGetAuthorFeed.OutputSchema).feed
+
+    isFullFeedHistory = (data as AppBskyFeedGetAuthorFeed.OutputSchema).cursor
+      ? false
+      : true
   }
 
   if (!authorFeed || authorFeed.length === 0) return labelResult // no posts, no labels

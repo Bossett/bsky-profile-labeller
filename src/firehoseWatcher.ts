@@ -1,18 +1,15 @@
 import FirehoseIterable from './lib/firehoseIterable.js'
 import logger from '@/lib/logger.js'
 import wait from '@/lib/wait.js'
-import {
-  enqueueTask,
-  getQueueLength,
-  forceProcessQueue,
-} from '@/lib/rateLimit.js'
+
 import formatDuration from '@/lib/formatDuration.js'
 
-import { cacheStatistics } from '@/lib/getUserDetails.js'
+import { cacheStatistics as userDetailsCacheStats } from '@/lib/getUserDetails.js'
+import { cacheStatistics as authorFeedDetailsCacheStats } from '@/lib/getAuthorFeed.js'
 
 import env from '@/lib/env.js'
 import db, { schema } from '@/db/db.js'
-import { processCommit } from '@/lib/processCommit.js'
+import { processCommit, validateCommit } from '@/lib/processCommit.js'
 
 export default async function firehoseWatcher() {
   let seq: number =
@@ -29,9 +26,6 @@ export default async function firehoseWatcher() {
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
 
-  let wantsPause = false
-  let hasPaused = false
-
   const firstRun = Date.now()
 
   let willRestartOnUnpause = false
@@ -40,11 +34,6 @@ export default async function firehoseWatcher() {
 
   const interval = async () => {
     while (await wait(interval_ms - (Date.now() % interval_ms))) {
-      wantsPause = true
-      while (hasPaused === false) {
-        await wait(1000)
-      }
-
       const deltaLag = lastLag - lag
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
@@ -73,23 +62,28 @@ export default async function firehoseWatcher() {
 
       lastLag = lag
 
-      const cacheStats = cacheStatistics()
+      const detailsCacheStats = userDetailsCacheStats()
+      const authorFeedCacheStats = authorFeedDetailsCacheStats()
 
       const logLines = [
         `at seq: ${seq} with lag ${formatDuration(lag)}`,
         `${timeToRealtimeStr} at ${speed.toFixed(
           2,
         )}ops/s, running ${formatDuration(Date.now() - firstRun)}`,
-        `details cache: ${cacheStats.items()} items ${cacheStats
+        `details cache: ${detailsCacheStats.items()} items ${detailsCacheStats
           .hitRate()
-          .toFixed(2)}% hit (${cacheStats.recentExpired()} expired)`,
+          .toFixed(2)}% hit (${detailsCacheStats.recentExpired()} expired)`,
+        `author feed cache: ${authorFeedCacheStats.items()} items ${authorFeedCacheStats
+          .hitRate()
+          .toFixed(2)}% hit (${authorFeedCacheStats.recentExpired()} expired)`,
       ]
 
       for (const line of logLines) {
         logger.info(line)
       }
 
-      cacheStats.reset()
+      detailsCacheStats.reset()
+      authorFeedCacheStats.reset()
 
       old_seq = seq
       await db
@@ -108,14 +102,11 @@ export default async function firehoseWatcher() {
         logger.debug(`running gc...`)
         global.gc()
       }
-      logger.debug(`unpaused, resuming...`)
 
       if (speed < stalled_at && isSlowingDown) {
         logger.error(`firehose stalled at ${speed} ops/s`)
         willRestartOnUnpause = true
       }
-
-      wantsPause = false
     }
   }
 
@@ -128,6 +119,7 @@ export default async function firehoseWatcher() {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
+        maxPending: env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 4,
       })
 
       for await (const commit of firehose) {
@@ -140,83 +132,16 @@ export default async function firehoseWatcher() {
               : Date.now() - commitTime
         } else continue
 
-        if (wantsPause && !hasPaused) {
-          let waitCycles = 0
-          while (await wait(1000)) {
-            if (getQueueLength() === 0) {
-              hasPaused = true
-              logger.debug(`paused waiting for sequence update`)
-              break
-            } else {
-              forceProcessQueue()
-
-              const alertEvery = Math.floor(
-                env.limits.PAUSE_TIMEOUT_MS / 1000 / 5,
-              )
-              const alertThreshold = Math.floor(
-                (env.limits.PAUSE_TIMEOUT_MS / 1000) * 0.7,
-              )
-              if (
-                waitCycles++ % alertEvery === 0 &&
-                waitCycles < alertThreshold
-              ) {
-                logger.debug(
-                  `pausing, waiting for ${getQueueLength()} ops to finish...`,
-                )
-              }
-              if (
-                waitCycles++ % alertEvery === 0 &&
-                waitCycles >= alertThreshold
-              ) {
-                logger.warn(
-                  `waiting too long for ${getQueueLength()} ops to finish`,
-                )
-              }
-              if (waitCycles > env.limits.PAUSE_TIMEOUT_MS / 1000) {
-                logger.error(
-                  `too many retry cycles waiting for ` +
-                    `${getQueueLength()} ops to finish`,
-                )
-                throw new Error('TooManyPendingOps')
-              }
-            }
-          }
-          waitCycles = 0
-        }
-        while (hasPaused && wantsPause) {
-          await wait(1000)
-        }
-
         if (willRestartOnUnpause) break
 
-        hasPaused = false
+        itemsProcessed++
 
-        await enqueueTask(async () => {
-          let retries = env.limits.MAX_RETRIES
-          let shouldRetry = true
+        const isValidCommit = validateCommit(commit)
+        if (!(isValidCommit.did && isValidCommit.seq)) {
+          continue
+        }
 
-          while (shouldRetry) {
-            try {
-              await Promise.race([
-                processCommit(commit),
-                new Promise((_, reject) => {
-                  setTimeout(() => {
-                    reject(new Error('CommitTimeout'))
-                  }, env.limits.MAX_PROCESSING_TIME_MS)
-                }),
-              ])
-              shouldRetry = false
-              itemsProcessed++
-            } catch (e) {
-              logger.debug(`retrying commit ${commit['meta'].seq}`)
-              retries--
-              if (retries === 0) {
-                logger.warn(`failing commit ${commit['meta'].seq}`)
-                shouldRetry = false
-              }
-            }
-          }
-        })
+        await processCommit(commit)
       }
     } catch (e) {
       logger.warn(`${e} in firehoseWatcher`)

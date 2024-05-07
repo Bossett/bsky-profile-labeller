@@ -9,7 +9,7 @@ const results = new Map<string, pendingResults>()
 
 type pendingResults = {
   did: string
-  completedDate?: Date
+  completedDate?: number
   data?: AppBskyActorDefs.ProfileViewDetailed
   errorReason?: string
   failed: boolean
@@ -18,9 +18,33 @@ type pendingResults = {
 let batchExecuting = false
 let lastBatchRun = Date.now()
 
+function trackLimit() {
+  if (results.size > env.limits.USER_DETAILS_MAX_SIZE * 2) {
+    const initialSize = results.size
+    const resultsArray = Array.from(results.entries())
+
+    resultsArray.sort((a, b) => {
+      const dateA = a[1].completedDate || 0
+      const dateB = b[1].completedDate || 0
+      return dateB - dateA
+    })
+
+    const topResults = resultsArray.slice(0, env.limits.USER_DETAILS_MAX_SIZE)
+
+    results.clear()
+
+    for (const [key, value] of topResults) {
+      if (!isExpiredResult(value)) results.set(key, value)
+    }
+    return initialSize - results.size
+  }
+  return 0
+}
+
 async function executeBatch() {
   if (batchExecuting) {
-    return
+    await wait(1)
+    return true
   }
 
   batchExecuting = true
@@ -38,9 +62,10 @@ async function executeBatch() {
     if (result.completedDate === undefined) return true
   })
 
-  if (allActors.length < maxRequestChunk && Date.now() - lastBatchRun < 10000) {
+  if (allActors.length < maxRequestChunk && Date.now() - lastBatchRun < 1000) {
     batchExecuting = false
-    return
+    await wait(1)
+    return true
   }
 
   const sliceAt = allActors.length - (allActors.length % maxRequestChunk)
@@ -62,7 +87,7 @@ async function executeBatch() {
         if (profiles[did]) {
           results.set(did, {
             data: profiles[did],
-            completedDate: new Date(),
+            completedDate: Date.now(),
             did: did,
             failed: false,
           })
@@ -81,7 +106,7 @@ async function executeBatch() {
         did: did,
         failed: true,
         errorReason: 'not found',
-        completedDate: new Date(),
+        completedDate: Date.now(),
       })
     }
   }
@@ -89,17 +114,25 @@ async function executeBatch() {
   lastBatchRun = Date.now()
 
   batchExecuting = false
-  return
+  return true
+}
+
+function seededRandom(seed: number) {
+  const a = 1664525
+  const c = 1013904223
+  const m = 2 ** 32 // 2 to the power of 32
+  seed = (a * seed + c) % m
+  return seed / m
 }
 
 function isExpiredResult(result: pendingResults) {
   if (result.completedDate === undefined) return false
 
   if (
-    result.completedDate.getTime() <
+    result.completedDate <
     Date.now() -
       (env.limits.USER_DETAILS_MIN_AGE_MS +
-        Math.floor(Math.random() * env.limits.USER_DETAILS_MIN_AGE_MS))
+        Math.floor(seededRandom(result.completedDate)))
   ) {
     return true
   } else return false
@@ -132,7 +165,8 @@ export function cacheStatistics() {
 }
 
 function scavengeExpired() {
-  lastScavengeCount = 0
+  lastScavengeCount = trackLimit()
+
   for (const [did, result] of results) {
     if (isExpiredResult(result)) {
       results.delete(did)
@@ -146,7 +180,7 @@ export function purgeCacheForDid(did: string) {
 
   results.set(did, {
     ...(results.get(did) as pendingResults),
-    completedDate: new Date(0),
+    completedDate: 0,
   })
   logger.debug(`cache purged for ${did}`)
 }
@@ -190,7 +224,7 @@ async function getUserDetails(
     }
 
     await executeBatch()
-  } while (await wait(500))
+  } while (await wait(1))
 
   return { error: 'unknown error' }
 }
