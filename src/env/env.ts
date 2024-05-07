@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import logger from '@/lib/logger.js'
-import limits from '@/lib/limits.js'
+import logger from '@/helpers/logger.js'
+import limits from '@/env/limits.js'
 
 const envSchema = z.object({
   LABELLER_HANDLE: z.string(),

@@ -1,4 +1,4 @@
-import logger from '@/lib/logger.js'
+import logger from '@/helpers/logger.js'
 import db, { schema } from '@/db/db.js'
 
 export default async function insertOrUpdateHandle(

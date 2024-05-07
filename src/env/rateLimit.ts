@@ -1,7 +1,7 @@
 import { pRateLimit } from 'p-ratelimit'
-import logger from '@/lib/logger.js'
-import wait from '@/lib/wait.js'
-import env from '@/lib/env.js'
+import logger from '@/helpers/logger.js'
+import wait from '@/helpers/wait.js'
+import env from '@/env/env.js'
 
 export const plcLimit = pRateLimit({
   interval: env.limits.PLC_LIMIT_RATE_INTERVAL_MS,

@@ -1,8 +1,8 @@
 import { AppBskyActorDefs } from '@atproto/api'
-import { pdsLimit } from '@/lib/rateLimit.js'
+import { pdsLimit } from '@/env/rateLimit.js'
 import { agent } from '@/lib/bskyAgent.js'
-import env from '@/lib/env.js'
-import wait from '@/lib/wait.js'
+import env from '@/env/env.js'
+import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
 import Denque from 'denque'

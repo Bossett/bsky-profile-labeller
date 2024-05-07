@@ -1,6 +1,6 @@
 import { AppBskyFeedGetAuthorFeed } from '@atproto/api'
-import env from '@/lib/env.js'
-import { retryLimit } from '@/lib/rateLimit.js'
+import env from '@/env/env.js'
+import { retryLimit } from '@/env/rateLimit.js'
 
 import CachedFetch from '@/lib/CachedFetch.js'
 

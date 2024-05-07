@@ -1,6 +1,6 @@
-import wait from '@/lib/wait.js'
+import wait from '@/helpers/wait.js'
 import db, { schema, eq, lte, isNotNull, and } from '@/db/db.js'
-import env from '@/lib/env.js'
+import env from '@/env/env.js'
 
 export default async function scheduler() {
   do {

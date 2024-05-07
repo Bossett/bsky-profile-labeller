@@ -1,4 +1,4 @@
-import env from '@/lib/env.js'
+import env from '@/env/env.js'
 import * as schema from '@/db/schema.js'
 
 /*

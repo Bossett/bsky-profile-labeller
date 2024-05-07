@@ -1,5 +1,5 @@
-import logger from '@/lib/logger.js'
-import wait from '@/lib/wait.js'
+import logger from '@/helpers/logger.js'
+import wait from '@/helpers/wait.js'
 
 import Denque from 'denque'
 

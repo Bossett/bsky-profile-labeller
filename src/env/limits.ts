@@ -8,19 +8,19 @@ const limits = {
 
   // rate limiter for authed request
   PDS_LIMIT_MAX_CONCURRENT: 64,
-  PDS_LIMIT_MAX_DELAY_MS: undefined, // 30 * 1000,
+  PDS_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
   PDS_LIMIT_MAX_RATE: 2_500,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for plc.directory
   PLC_LIMIT_MAX_CONCURRENT: 256,
-  PLC_LIMIT_MAX_DELAY_MS: undefined, // 30 * 1000,
+  PLC_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
   PLC_LIMIT_MAX_RATE: 25_000,
   PLC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for public API
   PUBLIC_LIMIT_MAX_CONCURRENT: 96,
-  PUBLIC_LIMIT_MAX_DELAY_MS: undefined, // 30 * 1000,
+  PUBLIC_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
   PUBLIC_LIMIT_MAX_RATE: 250_000,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 

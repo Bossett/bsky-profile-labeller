@@ -1,6 +1,6 @@
 import db, { schema } from '@/db/db.js'
-import logger from '@/lib/logger.js'
-import env from '@/lib/env.js'
+import logger from '@/helpers/logger.js'
+import env from '@/env/env.js'
 
 const MAX_PENDING = env.limits.MAX_PENDING_INSERTS
 const PENDING_INTERVAL = env.limits.MAX_PENDING_INSERTS_WAIT_MS

@@ -1,6 +1,6 @@
-import { plcLimit } from '@/lib/rateLimit.js'
+import { plcLimit } from '@/env/rateLimit.js'
 import CachedFetch from '@/lib/CachedFetch.js'
-import env from '@/lib/env.js'
+import env from '@/env/env.js'
 
 const plcFetch = new CachedFetch({
   maxAge: env.limits.PLC_DIRECTORY_MIN_AGE_MS,

@@ -1,9 +1,9 @@
 import { agent, reauth, agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
-import logger from '@/lib/logger.js'
-import env from '@/lib/env.js'
+import logger from '@/helpers/logger.js'
+import env from '@/env/env.js'
 
-import { pdsLimit } from '@/lib/rateLimit.js'
+import { pdsLimit } from '@/env/rateLimit.js'
 
 export default async function emitAccountReport(
   eventInput: ToolsOzoneModerationEmitEvent.InputSchema,

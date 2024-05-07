@@ -1,4 +1,4 @@
-import logger from '@/lib/logger.js'
+import logger from '@/helpers/logger.js'
 
 import * as cborx from 'cbor-x'
 import { CID } from 'multiformats'

@@ -1,14 +1,14 @@
-import FirehoseIterable from './lib/firehoseIterable.js'
-import logger from '@/lib/logger.js'
-import wait from '@/lib/wait.js'
+import FirehoseIterable from './lib/firehoseIterable/firehoseIterable.js'
+import logger from '@/helpers/logger.js'
+import wait from '@/helpers/wait.js'
 
-import formatDuration from '@/lib/formatDuration.js'
+import formatDuration from '@/helpers/formatDuration.js'
 
 import { cacheStatistics as userDetailsCacheStats } from '@/lib/getUserDetails.js'
 import { cacheStatistics as authorFeedDetailsCacheStats } from '@/lib/getAuthorFeed.js'
 import { cacheStatistics as plcDirectoryCacheStats } from '@/lib/getPlcRecord.js'
 
-import env from '@/lib/env.js'
+import env from '@/env/env.js'
 import db, { schema } from '@/db/db.js'
 import { processCommit } from '@/lib/processCommit.js'
 

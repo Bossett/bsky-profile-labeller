@@ -1,5 +1,5 @@
-import env from '@/lib/env.js'
-import logger from '@/lib/logger.js'
+import env from '@/env/env.js'
+import logger from '@/helpers/logger.js'
 
 type pendingResults = {
   url: string

@@ -1,7 +1,7 @@
 import { BskyAgent } from '@atproto/api'
-import env from '@/lib/env.js'
+import env from '@/env/env.js'
 
-import { authLimit } from '@/lib/rateLimit.js'
+import { authLimit } from '@/env/rateLimit.js'
 
 const _agent = new BskyAgent({ service: env.LABELLER_SERVICE })
 

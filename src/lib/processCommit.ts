@@ -13,9 +13,9 @@ import {
 } from '@/lib/insertOperations.js'
 import { AppBskyActorDefs } from '@atproto/api'
 import { agentDid } from '@/lib/bskyAgent.js'
-import logger from '@/lib/logger.js'
-import env from '@/lib/env.js'
-import wait from '@/lib/wait.js'
+import logger from '@/helpers/logger.js'
+import env from '@/env/env.js'
+import wait from '@/helpers/wait.js'
 import Denque from 'denque'
 
 type Commit = {
@@ -79,7 +79,7 @@ export function _processCommit(commit: Commit): Promise<void> {
     }, env.limits.MAX_PROCESSING_TIME_MS / 2)
 
     const failTimeout = setTimeout(async () => {
-      logger.debug(`${seq}: taking too long ${getDebugString()}, failing...`)
+      logger.warn(`${seq}: took too long ${getDebugString()}, failing...`)
       fail()
     }, env.limits.MAX_PROCESSING_TIME_MS)
 
