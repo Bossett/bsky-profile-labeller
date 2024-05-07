@@ -44,13 +44,18 @@ class CachedFetch {
       const initialSize = this.results.size
       const resultsArray = Array.from(this.results.entries())
 
+      const failedResults = resultsArray.filter((item) => item[1].failed)
+
       resultsArray.sort((a, b) => {
         const dateA = a[1].completedDate || 0
         const dateB = b[1].completedDate || 0
         return dateB - dateA
       })
 
-      const topResults = resultsArray.slice(0, env.limits.USER_DETAILS_MAX_SIZE)
+      const topResults = [
+        ...resultsArray.slice(0, this.maxSize),
+        ...failedResults,
+      ]
 
       this.results.clear()
 
@@ -116,7 +121,7 @@ class CachedFetch {
     if (!time) time = Date.now()
 
     const res = this.results.get(key)
-    if (!res) return
+    if (!res?.completedDate) return
 
     if ((res.completedDate ? res.completedDate : 0) < time) {
       this.results.set(key, {
@@ -173,7 +178,6 @@ class CachedFetch {
         })
         return json as any
       } catch (e) {
-        if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
         return { error: `failed to fetch (${e.message})` }
       }
     }
