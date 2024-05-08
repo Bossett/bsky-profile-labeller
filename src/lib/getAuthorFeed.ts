@@ -8,7 +8,7 @@ const limit = env.limits.AUTHOR_FEED_MAX_RESULTS
 
 const fetchCachedFeed = new CachedFetch({
   maxAge: env.limits.AUTHOR_FEED_MAX_AGE_MS,
-  maxSize: env.limits.AUTHOR_FEED_MAX_RESULTS,
+  maxSize: env.limits.AUTHOR_FEED_MAX_SIZE,
   limiter: retryLimit,
 })
 
