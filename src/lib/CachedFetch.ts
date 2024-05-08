@@ -51,8 +51,8 @@ class CachedFetch {
 
     if (pendingResults.length < this.maxSize) {
       resultsArray.sort((a, b) => {
-        const dateA = a[1].lastUsed || 0
-        const dateB = b[1].lastUsed || 0
+        const dateA = a[1].completedDate || 0
+        const dateB = b[1].completedDate || 0
         return dateB - dateA
       })
     }
@@ -71,12 +71,12 @@ class CachedFetch {
   }
 
   protected isExpiredResult(result: pendingResults) {
-    if (result.lastUsed === undefined) return false
+    if (result.completedDate === undefined) return false
 
     if (
-      result.lastUsed <
+      result.completedDate <
       Date.now() -
-        (this.maxAge + Math.floor(this.seededRandom(result.lastUsed)))
+        (this.maxAge + Math.floor(this.seededRandom(result.completedDate)))
     ) {
       return true
     } else return false
@@ -189,7 +189,7 @@ class CachedFetch {
             failed: true,
             errorReason: `${errText}`,
             completedDate: Date.now(),
-            lastUsed: 0,
+            lastUsed: Date.now(),
           })
           return { error: `failed to fetch (${errText})` }
         } else {

@@ -1,11 +1,10 @@
-import { AppBskyActorDefs } from '@atproto/api'
-import { pdsLimit } from '@/env/rateLimit.js'
-import { agent } from '@/lib/bskyAgent.js'
+import { AppBskyFeedDefs } from '@atproto/api'
+import { retryLimit } from '@/env/rateLimit.js'
 import env from '@/env/env.js'
 import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
-class UserDetailsFetch extends CachedFetch {
+class PostFetch extends CachedFetch {
   private batchExecuting = false
   private lastBatchRun = Date.now()
 
@@ -17,14 +16,27 @@ class UserDetailsFetch extends CachedFetch {
 
     this.batchExecuting = true
 
-    const maxRequestChunk = 25
-    const getProfiles = (actors: string[]) =>
-      pdsLimit(() => agent.app.bsky.actor.getProfiles({ actors: actors }))
+    const maxRequestChunk = 100
+
+    const getPosts = (posts: string[]) => {
+      const postQueryString = 'uris=' + posts.join('&uris=')
+      return retryLimit(async () => {
+        try {
+          const res = await fetch(
+            `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts?` +
+              postQueryString,
+          )
+          return await res.json()
+        } catch (e) {
+          return { posts: [] }
+        }
+      })
+    }
 
     const batchDids = Array.from(this.results.keys()).sort()
 
-    const allActors: string[] = batchDids.filter((did) => {
-      const result = this.results.get(did)
+    const allPosts: string[] = batchDids.filter((url) => {
+      const result = this.results.get(url)
       if (!result) return false
       if (this.isFailedResult(result)) return false
       if (result.completedDate === undefined) return true
@@ -33,57 +45,57 @@ class UserDetailsFetch extends CachedFetch {
     const retryExpired =
       Date.now() - this.lastBatchRun > env.limits.MAX_WAIT_RETRY_MS
 
-    if (allActors.length < maxRequestChunk && !retryExpired) {
+    if (allPosts.length < maxRequestChunk && !retryExpired) {
       this.batchExecuting = false
       await wait(1)
       return true
     }
 
-    const sliceAt = allActors.length - (allActors.length % maxRequestChunk)
+    const sliceAt = allPosts.length - (allPosts.length % maxRequestChunk)
 
-    const actors = allActors.slice(
+    const postURLs = allPosts.slice(
       0,
       sliceAt > 0
         ? retryExpired
-          ? allActors.length
+          ? allPosts.length
           : sliceAt
-        : allActors.length,
+        : allPosts.length,
     )
 
-    const foundActors = new Set<string>()
+    const foundPosts = new Set<string>()
 
     try {
       const resPromises: Promise<any>[] = []
 
-      for (let i = 0; i < actors.length; i += maxRequestChunk) {
-        const actorsChunk = actors.slice(i, i + maxRequestChunk)
-        resPromises.push(getProfiles(actorsChunk))
+      for (let i = 0; i < postURLs.length; i += maxRequestChunk) {
+        const postsChunk = postURLs.slice(i, i + maxRequestChunk)
+        resPromises.push(getPosts(postsChunk))
       }
 
-      const profileResults = (await Promise.all(resPromises)).reduce(
+      const postResults = (await Promise.all(resPromises)).reduce(
         (acc, item) => ({
           data: {
-            profiles: [...acc.data.profiles, ...item.data.profiles],
+            posts: [...acc.posts, ...item.posts],
           },
         }),
-        { data: { profiles: [] } },
+        { posts: [] },
       )
 
-      const profiles = profileResults.data.profiles.reduce(
-        (map, profile) => ({ ...map, [profile.did]: profile }),
+      const posts = postResults.data.posts.reduce(
+        (map, post) => ({ ...map, [post.uri]: post }),
         {},
       )
 
-      for (const did of actors) {
-        if (profiles[did]) {
-          this.results.set(did, {
-            data: profiles[did],
+      for (const url of postURLs) {
+        if (posts[url]) {
+          this.results.set(url, {
+            data: posts[url],
             completedDate: Date.now(),
-            url: did,
+            url: url,
             failed: false,
             lastUsed: Date.now(),
           })
-          foundActors.add(did)
+          foundPosts.add(url)
         }
       }
     } catch (e) {
@@ -92,10 +104,10 @@ class UserDetailsFetch extends CachedFetch {
       return
     }
 
-    for (const did of actors) {
-      if (!foundActors.has(did)) {
-        this.results.set(did, {
-          url: did,
+    for (const url of postURLs) {
+      if (!foundPosts.has(url)) {
+        this.results.set(url, {
+          url: url,
           failed: true,
           errorReason: 'not found',
           completedDate: Date.now(),
@@ -112,7 +124,7 @@ class UserDetailsFetch extends CachedFetch {
 
   public async getJson(
     url: string,
-  ): Promise<AppBskyActorDefs.ProfileViewDetailed | { error: string }> {
+  ): Promise<AppBskyFeedDefs.PostView | { error: string }> {
     let cacheHit = true
     const did = url
     do {
@@ -144,7 +156,7 @@ class UserDetailsFetch extends CachedFetch {
             errorReason: undefined,
             lastUsed: Date.now(),
           })
-          return data as AppBskyActorDefs.ProfileViewDetailed
+          return data as AppBskyFeedDefs.PostView
         }
       } else {
         this.globalCacheMiss++
@@ -165,23 +177,23 @@ class UserDetailsFetch extends CachedFetch {
   }
 }
 
-const userDetailsFetch = new UserDetailsFetch({
-  maxAge: env.limits.USER_DETAILS_MAX_AGE_MS,
-  maxSize: env.limits.USER_DETAILS_MAX_SIZE,
+const postFetch = new PostFetch({
+  maxAge: env.limits.POST_CACHE_MAX_SIZE,
+  maxSize: env.limits.POST_CACHE_MAX_AGE_MS,
 })
 
-async function getUserDetails(
+async function getPost(
   did: string,
-): Promise<AppBskyActorDefs.ProfileViewDetailed | { error: string }> {
-  return await userDetailsFetch.getJson(did)
+): Promise<AppBskyFeedDefs.PostView | { error: string }> {
+  return await postFetch.getJson(did)
 }
 
 export function cacheStatistics() {
-  return userDetailsFetch.cacheStatistics()
+  return postFetch.cacheStatistics()
 }
 
-export function purgeCacheForDid(did: string, time?: number) {
-  return userDetailsFetch.purgeCacheForKey(did, time)
+export function purgeCacheForPost(atUrl: string, time?: number) {
+  return postFetch.purgeCacheForKey(atUrl, time)
 }
 
-export default getUserDetails
+export default getPost

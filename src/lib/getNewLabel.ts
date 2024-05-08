@@ -1,10 +1,7 @@
-import {
-  AppBskyFeedDefs,
-  AppBskyFeedGetAuthorFeed,
-  AppBskyFeedGetPosts,
-} from '@atproto/api'
+import { AppBskyFeedDefs, AppBskyFeedGetAuthorFeed } from '@atproto/api'
 
 import { OperationsResult } from '@/lib/insertOperations.js'
+import getPost from '@/lib/getPost.js'
 
 import { retryLimit } from '@/env/rateLimit.js'
 import env from '@/env/env.js'
@@ -122,25 +119,17 @@ export async function getNewLabel({
         postAfterChange === false
       ) {
         try {
-          const res = await retryLimit(
-            async () =>
-              await fetch(
-                `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts` +
-                  `?uris=${post}`,
-              ),
-          )
+          const postData = await getPost(post)
 
-          const data = (await res.json()) as AppBskyFeedGetPosts.OutputSchema
-
-          if (data.posts.length !== 0) {
-            const thisPost = data.posts[0]?.indexedAt
+          if (!postData.error) {
+            const thisPost = postData as AppBskyFeedDefs.PostView
 
             if (thisPost) {
-              if (new Date(thisPost).getTime() > handleCreationTime)
+              if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
                 createLabels.add('newhandle')
             }
           } else {
-            logger.debug(`error finding ${post} (deleted?)`)
+            logger.debug(`error finding ${post}: ${postData.error}`)
           }
         } catch (e) {
           logger.debug(`${e.message} fetching post ${post}`)

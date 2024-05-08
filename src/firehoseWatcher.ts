@@ -7,6 +7,7 @@ import formatDuration from '@/helpers/formatDuration.js'
 import { cacheStatistics as userDetailsCacheStats } from '@/lib/getUserDetails.js'
 import { cacheStatistics as authorFeedDetailsCacheStats } from '@/lib/getAuthorFeed.js'
 import { cacheStatistics as plcDirectoryCacheStats } from '@/lib/getPlcRecord.js'
+import { cacheStatistics as postBatchCacheStats } from '@/lib/getPost.js'
 
 import env from '@/env/env.js'
 import db, { schema } from '@/db/db.js'
@@ -71,6 +72,7 @@ export default async function firehoseWatcher() {
       const detailsCacheStats = userDetailsCacheStats()
       const authorFeedCacheStats = authorFeedDetailsCacheStats()
       const plcCacheStats = plcDirectoryCacheStats()
+      const postCacheStats = postBatchCacheStats()
 
       const logLines = [
         `at seq: ${seq} with lag ${formatDuration(lag)}`,
@@ -87,6 +89,9 @@ export default async function firehoseWatcher() {
         `plc directory cache: ${plcCacheStats.items()} items ${plcCacheStats
           .hitRate()
           .toFixed(2)}% hit (${plcCacheStats.recentExpired()} expired)`,
+        `post cache: ${postCacheStats.items()} items ${plcCacheStats
+          .hitRate()
+          .toFixed(2)}% hit (${postCacheStats.recentExpired()} expired)`,
       ]
 
       for (const line of logLines) {

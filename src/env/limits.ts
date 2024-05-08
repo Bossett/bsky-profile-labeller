@@ -8,23 +8,23 @@ const limits = {
 
   // rate limiter for authed request
   PDS_LIMIT_MAX_CONCURRENT: 64,
-  PDS_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
+  PDS_LIMIT_MAX_DELAY_MS: 20 * 1000,
   PDS_LIMIT_MAX_RATE: 2_500,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for plc.directory
   PLC_LIMIT_MAX_CONCURRENT: 256,
-  PLC_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
+  PLC_LIMIT_MAX_DELAY_MS: 20 * 1000,
   PLC_LIMIT_MAX_RATE: 25_000,
   PLC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for public API
   PUBLIC_LIMIT_MAX_CONCURRENT: 96,
-  PUBLIC_LIMIT_MAX_DELAY_MS: 3 * 60 * 1000,
+  PUBLIC_LIMIT_MAX_DELAY_MS: 20 * 1000,
   PUBLIC_LIMIT_MAX_RATE: 250_000,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
-  MAX_RETRIES: 2, // retries for HTTP calls and attempts to process commits
+  MAX_RETRIES: 3, // retries for HTTP calls and attempts to process commits
   MAX_WAIT_RETRY_MS: 2 * 1000, // some HTTP calls are retried, this sets the max wait between retries
 
   // ***** APPLICATION CONFIG *****
@@ -35,7 +35,7 @@ const limits = {
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 100, // the maximum number of label pending events before writing to the db
-  MAX_PROCESSING_TIME_MS: 15 * 1000, // the maximum time any given commit can take to process
+  MAX_PROCESSING_TIME_MS: 20 * 1000, // the maximum time any given commit can take to process
 
   PAUSE_TIMEOUT_MS: 1 * 60 * 1000, // how long can we pause operations waiting to write to the db
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
@@ -45,6 +45,8 @@ const limits = {
   AUTHOR_FEED_MAX_SIZE: 2000,
   PLC_DIRECTORY_MAX_AGE_MS: 60 * 60 * 1000,
   PLC_DIRECTORY_MAX_SIZE: 4000,
+  POST_CACHE_MAX_AGE_MS: 8 * 60 * 60 * 1000,
+  POST_CACHE_MAX_SIZE: 1000,
 }
 
 const validateLimits = {
