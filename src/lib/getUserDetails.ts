@@ -81,6 +81,7 @@ class UserDetailsFetch extends CachedFetch {
             completedDate: Date.now(),
             url: did,
             failed: false,
+            lastUsed: 0,
           })
           foundActors.add(did)
         }
@@ -98,6 +99,7 @@ class UserDetailsFetch extends CachedFetch {
           failed: true,
           errorReason: 'not found',
           completedDate: Date.now(),
+          lastUsed: 0,
         })
       }
     }
@@ -138,8 +140,9 @@ class UserDetailsFetch extends CachedFetch {
             url: url,
             failed: false,
             data: data,
-            completedDate: Date.now(),
+            completedDate: result.completedDate,
             errorReason: undefined,
+            lastUsed: Date.now(),
           })
           return data as AppBskyActorDefs.ProfileViewDetailed
         }
@@ -151,6 +154,7 @@ class UserDetailsFetch extends CachedFetch {
           data: undefined,
           completedDate: undefined,
           errorReason: undefined,
+          lastUsed: 0,
         })
       }
 
@@ -162,7 +166,7 @@ class UserDetailsFetch extends CachedFetch {
 }
 
 const userDetailsFetch = new UserDetailsFetch({
-  maxAge: env.limits.USER_DETAILS_MIN_AGE_MS,
+  maxAge: env.limits.USER_DETAILS_MAX_AGE_MS,
   maxSize: env.limits.USER_DETAILS_MAX_SIZE,
 })
 

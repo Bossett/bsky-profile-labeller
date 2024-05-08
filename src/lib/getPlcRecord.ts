@@ -3,7 +3,7 @@ import CachedFetch from '@/lib/CachedFetch.js'
 import env from '@/env/env.js'
 
 const plcFetch = new CachedFetch({
-  maxAge: env.limits.PLC_DIRECTORY_MIN_AGE_MS,
+  maxAge: env.limits.PLC_DIRECTORY_MAX_AGE_MS,
   maxSize: env.limits.PLC_DIRECTORY_MAX_SIZE,
   limiter: plcLimit,
 })

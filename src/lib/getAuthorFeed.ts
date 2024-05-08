@@ -7,7 +7,7 @@ import CachedFetch from '@/lib/CachedFetch.js'
 const limit = env.limits.AUTHOR_FEED_MAX_RESULTS
 
 const fetchCachedFeed = new CachedFetch({
-  maxAge: env.limits.AUTHOR_FEED_MIN_AGE_MS,
+  maxAge: env.limits.AUTHOR_FEED_MAX_AGE_MS,
   maxSize: env.limits.AUTHOR_FEED_MAX_RESULTS,
   limiter: retryLimit,
 })

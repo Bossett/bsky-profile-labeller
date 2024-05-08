@@ -7,6 +7,7 @@ type pendingResults = {
   data?: any
   errorReason?: string
   failed: boolean
+  lastUsed: number
 }
 
 class CachedFetch {
@@ -50,8 +51,8 @@ class CachedFetch {
 
     if (pendingResults.length < this.maxSize) {
       resultsArray.sort((a, b) => {
-        const dateA = a[1].completedDate || 0
-        const dateB = b[1].completedDate || 0
+        const dateA = a[1].lastUsed || 0
+        const dateB = b[1].lastUsed || 0
         return dateB - dateA
       })
     }
@@ -70,12 +71,12 @@ class CachedFetch {
   }
 
   protected isExpiredResult(result: pendingResults) {
-    if (result.completedDate === undefined) return false
+    if (result.lastUsed === undefined) return false
 
     if (
-      result.completedDate <
+      result.lastUsed <
       Date.now() -
-        (this.maxAge + Math.floor(this.seededRandom(result.completedDate)))
+        (this.maxAge + Math.floor(this.seededRandom(result.lastUsed)))
     ) {
       return true
     } else return false
@@ -168,8 +169,9 @@ class CachedFetch {
           url: url,
           failed: false,
           data: data,
-          completedDate: Date.now(),
+          completedDate: result.completedDate,
           errorReason: undefined,
+          lastUsed: Date.now(),
         })
         return data as any
       }
@@ -187,6 +189,7 @@ class CachedFetch {
             failed: true,
             errorReason: `${errText}`,
             completedDate: Date.now(),
+            lastUsed: 0,
           })
           return { error: `failed to fetch (${errText})` }
         } else {
@@ -198,6 +201,7 @@ class CachedFetch {
             data: json as any,
             completedDate: Date.now(),
             errorReason: undefined,
+            lastUsed: Date.now(),
           })
           return json as any
         }
