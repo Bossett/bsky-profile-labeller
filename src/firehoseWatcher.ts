@@ -39,10 +39,13 @@ export default async function firehoseWatcher() {
   const interval = async () => {
     let cycleInterval = interval_ms - (Date.now() % interval_ms)
     while (await wait(cycleInterval)) {
+      const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
       cycleInterval = interval_ms
 
       deltaLag =
-        deltaLag === 0 ? lastLag - lag : (deltaLag + (lastLag - lag)) / 2
+        deltaLag === 0
+          ? Math.max(lag, lastLag)
+          : (deltaLag + (lastLag - lag)) / 2
 
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
@@ -50,7 +53,6 @@ export default async function firehoseWatcher() {
       isSlowingDown = false
       timeToRealtimeStr = 'initialising'
 
-      const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
       const skippedItems = itemsSkipped
       const totalItems = itemsProcessed + itemsSkipped
 
@@ -144,8 +146,8 @@ export default async function firehoseWatcher() {
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
         maxPending: Math.max(
-          env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 4,
-          15000,
+          env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 10,
+          25000,
         ),
       })
 

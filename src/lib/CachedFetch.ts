@@ -92,7 +92,7 @@ class CachedFetch {
 
   protected globalCacheHit = 0
   protected globalCacheMiss = 0
-  protected lastScavengeCount = 0
+  protected globalCacheExpired = 0
 
   public cacheStatistics() {
     const hitRate = () =>
@@ -102,23 +102,24 @@ class CachedFetch {
       cacheMiss: this.globalCacheMiss,
       hitRate: isNaN(hitRate()) ? () => 0 : hitRate,
       items: () => this.results.size,
-      recentExpired: () => this.lastScavengeCount,
+      recentExpired: () => this.globalCacheExpired,
       reset: () => {
         this.globalCacheHit = 0
         this.globalCacheMiss = 0
+        this.globalCacheExpired = 0
         this.scavengeExpired()
       },
     }
   }
 
   public scavengeExpired() {
-    this.lastScavengeCount = this.trackLimit()
-    if (this.lastScavengeCount > 0) return
+    this.globalCacheExpired += this.trackLimit()
+    if (this.globalCacheExpired > 0) return
 
     for (const [url, result] of this.results) {
       if (this.isExpiredResult(result)) {
         this.results.delete(url)
-        this.lastScavengeCount++
+        this.globalCacheExpired++
       }
     }
   }
@@ -132,10 +133,8 @@ class CachedFetch {
     if (!res.completedDate) return false
 
     if (res.completedDate < time) {
-      this.results.set(key, {
-        ...(this.results.get(key) as pendingResults),
-        completedDate: 0,
-      })
+      this.results.delete(key)
+      this.globalCacheExpired++
 
       logger.debug(
         `cache purged for ${key} before ${new Date(time).toISOString()}`,
@@ -161,7 +160,7 @@ class CachedFetch {
         if (cacheHit) this.globalCacheHit++
         return {
           error:
-            (`${this.results.get(url)?.errorReason}` || 'unknown') +
+            (`${result.errorReason}` || 'unknown') +
             `${cacheHit ? ' (cached)' : ''}`,
         }
       }
@@ -219,18 +218,20 @@ class CachedFetch {
             })
           }
         } catch (e) {
-          this.results.set(url, {
-            url: url,
-            failed: true,
-            data: undefined,
-            errorReason: `${e.message}`,
-            completedDate: Date.now(),
-            lastUsed: Date.now(),
-          })
+          if (e.message !== 'queue maxDelay timeout exceeded') {
+            this.results.set(url, {
+              url: url,
+              failed: true,
+              data: undefined,
+              errorReason: `${e.message}`,
+              completedDate: Date.now(),
+              lastUsed: Date.now(),
+            })
+          }
           return { error: `failed to fetch (${e.message})` }
         }
       }
-    } while (await wait(1))
+    } while (this.results.has(url) && (await wait(10)))
 
     return { error: 'unknown error' }
   }

@@ -10,7 +10,7 @@ class PostFetch extends CachedFetch {
 
   private async executeBatch() {
     if (this.batchExecuting) {
-      await wait(1)
+      await wait(10)
       return true
     }
 
@@ -47,7 +47,7 @@ class PostFetch extends CachedFetch {
 
     if (allPosts.length < maxRequestChunk && !retryExpired) {
       this.batchExecuting = false
-      await wait(1)
+      await wait(10)
       return true
     }
 
@@ -171,7 +171,7 @@ class PostFetch extends CachedFetch {
       }
 
       await this.executeBatch()
-    } while (await wait(1))
+    } while (this.results.has(did) && (await wait(10)))
 
     return { error: 'unknown error' }
   }

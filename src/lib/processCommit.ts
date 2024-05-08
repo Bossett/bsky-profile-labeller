@@ -65,214 +65,214 @@ export function validateCommit(commit: Commit): { seq?: number; did?: string } {
 
 export function _processCommit(commit: Commit): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    const { seq, did } = validateCommit(commit)
-    if (!(seq && did)) {
-      resolve()
-      return
-    }
+    let failTimeout: NodeJS.Timeout = setTimeout(async () => {}, 1)
 
-    let debugString = ``
-    const getDebugString = () => debugString
+    try {
+      const { seq, did } = validateCommit(commit)
+      if (!(seq && did)) {
+        resolve()
+        return
+      }
 
-    const fail = () => {
-      reject(new Error(`ProcessCommitTimeout`))
-    }
+      const fail = () => {
+        reject(new Error(`ProcessCommitTimeout`))
+      }
 
-    const warnTimeout = setTimeout(async () => {
-      logger.debug(`${seq}: taking too long ${getDebugString()}...`)
-    }, env.limits.MAX_PROCESSING_TIME_MS / 2)
+      failTimeout = setTimeout(async () => {
+        logger.debug(`${seq}: took too long, failing...`)
+        fail()
+      }, env.limits.MAX_PROCESSING_TIME_MS)
 
-    const failTimeout = setTimeout(async () => {
-      logger.warn(`${seq}: took too long ${getDebugString()}, failing...`)
-      fail()
-    }, env.limits.MAX_PROCESSING_TIME_MS)
+      const time: number = commit.meta['time']
+        ? new Date(commit.meta['time']).getTime()
+        : 0
 
-    const time: number = commit.meta['time']
-      ? new Date(commit.meta['time']).getTime()
-      : 0
-
-    if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
-      if (purgePlcDirectoryCache(did, time)) {
-        logger.debug(`got identity change, refreshing plc cache of ${did}`)
+      if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
+        if (purgePlcDirectoryCache(did, time)) {
+          logger.debug(`got identity change, refreshing plc cache of ${did}`)
+        }
         getPlcRecord(did)
       }
-    }
-    if (commit.record['$type'] === 'app.bsky.actor.profile') {
-      if (purgeDetailsCache(did, time)) {
-        logger.debug(`got profile change, refreshing profile cache of ${did}`)
+      if (commit.record['$type'] === 'app.bsky.actor.profile') {
+        if (purgeDetailsCache(did, time)) {
+          logger.debug(`got profile change, refreshing profile cache of ${did}`)
+        }
         getUserDetails(did)
       }
-    }
-    if (commit.record['$type'] === 'app.bsky.feed.post') {
-      if (purgeAuthorFeedCache(did, time)) {
-        logger.debug(`got post, refreshing feed cache of ${did}`)
+      if (commit.record['$type'] === 'app.bsky.feed.post') {
+        if (purgeAuthorFeedCache(did, time)) {
+          logger.debug(`got post, refreshing feed cache of ${did}`)
+        }
         getAuthorFeed(did)
       }
-    }
 
-    debugString = `getting userDetails for ${did}`
-    const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
-      await getUserDetails(did)
+      const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
+        await getUserDetails(did)
 
-    if (tmpData.error) {
-      logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
-      clearTimeout(warnTimeout)
+      if (tmpData.error) {
+        logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
+
+        clearTimeout(failTimeout)
+        resolve()
+        return
+      }
+
+      const profileData = tmpData as AppBskyActorDefs.ProfileViewDetailed
+      const allLabelOperations: OperationsResult[] = []
+
+      const currentLabels = profileData.labels
+        ? profileData.labels.filter((label) => {
+            return label.src === agentDid && !label.neg
+          })
+        : []
+
+      const handleExpiryThreshold = Date.now() - env.NEWHANDLE_EXPIRY * 1000
+
+      const promArray: Promise<OperationsResult>[] = []
+
+      switch (commit.record['$type']) {
+        case 'app.bsky.feed.post':
+          const regex =
+            /at:\/\/(did:[^:]+:[^\/]+)\/app\.bsky\.feed\.post\/([^\/]+)/
+          const match = commit.atURL.match(regex)
+          if (!match) {
+            logger.debug(`${seq}: invalid commit URL ${commit.atURL}`)
+
+            clearTimeout(failTimeout)
+            resolve()
+            return
+          }
+          const [, commit_did, commit_rkey] = match
+
+          promArray.push(
+            getNewLabel({
+              did: commit_did,
+              rkey: commit_rkey,
+              watchedFrom: handleExpiryThreshold,
+            }),
+          )
+          break
+        case 'app.bsky.feed.like':
+          break
+        case 'app.bsky.feed.repost':
+          break
+        case 'app.bsky.graph.follow':
+          break
+        case 'app.bsky.actor.profile':
+          break
+
+        default:
+          clearTimeout(failTimeout)
+          return
+      }
+
+      promArray.push(getProfileLabel(profileData, currentLabels))
+
+      promArray.push(
+        getExpiringLabels({
+          labels: currentLabels,
+          labeller: agentDid,
+          watchedFrom: handleExpiryThreshold,
+          handlesToExpire: ['newhandle', 'newaccount'],
+        }),
+      )
+
+      const labelOperations = (await Promise.all(promArray)).reduce(
+        (ops, op) => {
+          ops.create = [...ops.create, ...op.create]
+          ops.remove = [...ops.remove, ...op.remove]
+          return ops
+        },
+        {
+          create: [],
+          remove: [],
+        },
+      )
+
+      allLabelOperations.forEach((operations) => {
+        labelOperations.create = [
+          ...labelOperations.create,
+          ...(operations.create ? operations.create : []),
+        ]
+
+        labelOperations.remove = [
+          ...labelOperations.remove,
+          ...(operations.remove ? operations.remove : []),
+        ]
+      })
+
+      const handlesToReapply = ['newhandle']
+
+      labelOperations.create = labelOperations.create.filter((label) => {
+        if (!currentLabels.map((curr) => curr.val).includes(label)) {
+          // only create labels that are not already on the account
+          // UNLESS they are in handlesToReapply
+          return false
+        } else {
+          if (handlesToReapply.includes(label)) return true
+          return false
+        }
+      })
+
+      labelOperations.remove = labelOperations.remove.filter((label) => {
+        if (currentLabels.map((curr) => curr.val).includes(label)) {
+          // only remove labels that are already on the account
+          return true
+        } else {
+          return false
+        }
+      })
+
+      const operations: operationType[] = []
+
+      if (labelOperations.remove.length > 0) {
+        for (const newLabel of labelOperations.remove) {
+          logger.debug(`${seq}: unlabel ${did} ${newLabel}`)
+          operations.push({
+            label: newLabel,
+            action: 'remove',
+            did: did,
+            comment: `removing ${newLabel} from ${did}`,
+          })
+        }
+      }
+      if (labelOperations.create.length > 0) {
+        for (const newLabel of labelOperations.create) {
+          logger.debug(`${seq}: label ${did} ${newLabel}`)
+          operations.push({
+            label: newLabel,
+            action: 'create',
+            did: did,
+            comment: `creating ${newLabel} for ${did}`,
+          })
+        }
+      }
+
+      if (
+        labelOperations.create.length > 0 ||
+        labelOperations.remove.length > 0
+      ) {
+        await insertOperations(operations)
+      }
+    } catch (e) {
+      clearTimeout(failTimeout)
+      reject(e)
+    } finally {
       clearTimeout(failTimeout)
       resolve()
-      return
     }
-
-    const profileData = tmpData as AppBskyActorDefs.ProfileViewDetailed
-    const labelOperations: OperationsResult = {
-      create: [],
-      remove: [],
-    }
-    const allLabelOperations: OperationsResult[] = []
-
-    const currentLabels = profileData.labels
-      ? profileData.labels.filter((label) => {
-          return label.src === agentDid && !label.neg
-        })
-      : []
-
-    const handleExpiryThreshold = Date.now() - env.NEWHANDLE_EXPIRY * 1000
-
-    switch (commit.record['$type']) {
-      case 'app.bsky.feed.post':
-        const regex =
-          /at:\/\/(did:[^:]+:[^\/]+)\/app\.bsky\.feed\.post\/([^\/]+)/
-        const match = commit.atURL.match(regex)
-        if (!match) {
-          logger.debug(`${seq}: invalid commit URL ${commit.atURL}`)
-          clearTimeout(warnTimeout)
-          clearTimeout(failTimeout)
-          resolve()
-          return
-        }
-        const [, commit_did, commit_rkey] = match
-
-        debugString = `getting newLabels`
-        allLabelOperations.push(
-          await getNewLabel({
-            did: commit_did,
-            rkey: commit_rkey,
-            watchedFrom: handleExpiryThreshold,
-          }),
-        )
-        break
-      case 'app.bsky.feed.like':
-        break
-      case 'app.bsky.feed.repost':
-        break
-      case 'app.bsky.graph.follow':
-        break
-      case 'app.bsky.actor.profile':
-        break
-
-      default:
-        clearTimeout(warnTimeout)
-        clearTimeout(failTimeout)
-        return
-    }
-
-    debugString = `getting profileLabels`
-    allLabelOperations.push(await getProfileLabel(profileData, currentLabels))
-
-    debugString = `getting expiringLabels`
-    allLabelOperations.push(
-      await getExpiringLabels({
-        labels: currentLabels,
-        labeller: agentDid,
-        watchedFrom: handleExpiryThreshold,
-        handlesToExpire: ['newhandle', 'newaccount'],
-      }),
-    )
-
-    allLabelOperations.forEach((operations) => {
-      labelOperations.create = [
-        ...labelOperations.create,
-        ...(operations.create ? operations.create : []),
-      ]
-
-      labelOperations.remove = [
-        ...labelOperations.remove,
-        ...(operations.remove ? operations.remove : []),
-      ]
-    })
-
-    const handlesToReapply = ['newhandle']
-
-    labelOperations.create = labelOperations.create.filter((label) => {
-      if (!currentLabels.map((curr) => curr.val).includes(label)) {
-        // only create labels that are not already on the account
-        // UNLESS they are in handlesToReapply
-        return false
-      } else {
-        if (handlesToReapply.includes(label)) return true
-        return false
-      }
-    })
-
-    labelOperations.remove = labelOperations.remove.filter((label) => {
-      if (currentLabels.map((curr) => curr.val).includes(label)) {
-        // only remove labels that are already on the account
-        return true
-      } else {
-        return false
-      }
-    })
-
-    const operations: operationType[] = []
-
-    if (labelOperations.remove.length > 0) {
-      for (const newLabel of labelOperations.remove) {
-        logger.debug(`${seq}: unlabel ${did} ${newLabel}`)
-        operations.push({
-          label: newLabel,
-          action: 'remove',
-          did: did,
-          comment: `removing ${newLabel} from ${did}`,
-        })
-      }
-    }
-    if (labelOperations.create.length > 0) {
-      for (const newLabel of labelOperations.create) {
-        logger.debug(`${seq}: label ${did} ${newLabel}`)
-        operations.push({
-          label: newLabel,
-          action: 'create',
-          did: did,
-          comment: `creating ${newLabel} for ${did}`,
-        })
-      }
-    }
-
-    debugString = `inserting operations`
-
-    if (
-      labelOperations.create.length > 0 ||
-      labelOperations.remove.length > 0
-    ) {
-      await insertOperations(operations)
-    }
-
-    clearTimeout(warnTimeout)
-    clearTimeout(failTimeout)
-    resolve()
-    return
   })
 }
 
 const processQueue = new Denque<Commit>()
 const knownBadCommits = new Map<number, number>()
+const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
+const maxCommitRetries = 3
 let activeTasks = 0
 
 async function queueManager() {
   do {
-    while (
-      !processQueue.isEmpty() &&
-      activeTasks < env.limits.MAX_CONCURRENT_PROCESSCOMMITS
-    ) {
+    while (!processQueue.isEmpty() && activeTasks <= maxActiveTasks) {
       const commit = processQueue.shift()
       if (commit === undefined) break
 
@@ -286,10 +286,10 @@ async function queueManager() {
           const seq = Number.parseInt(commit.meta['seq'])
           const retries = knownBadCommits.get(seq)
 
-          if (retries && retries >= env.limits.MAX_RETRIES) {
+          if (retries && retries >= maxCommitRetries) {
             knownBadCommits.delete(seq)
             logger.warn(
-              `${seq} failed to process after ${env.limits.MAX_RETRIES} retries`,
+              `${seq} failed to process after ${maxCommitRetries} retries`,
             )
           } else {
             if (!retries) knownBadCommits.set(seq, 1)
@@ -301,23 +301,19 @@ async function queueManager() {
           activeTasks--
         })
     }
-  } while (await wait(1))
+  } while (await wait(1000))
 }
-
 queueManager()
 
 export async function processCommit(commit: Commit): Promise<boolean> {
-  while (
-    processQueue.length >=
-    env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 1.2
-  ) {
-    await wait(1)
+  const isValidCommit = validateCommit(commit)
+  if (!(isValidCommit.did && isValidCommit.seq)) return false
+
+  while (processQueue.size() >= maxActiveTasks * 10) {
+    await wait(10)
   }
 
-  const isValidCommit = validateCommit(commit)
-  if (isValidCommit.did && isValidCommit.seq) {
-    processQueue.push(commit)
-  }
+  processQueue.push(commit)
 
   return isValidCommit.did ? true : false
 }

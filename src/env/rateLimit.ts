@@ -38,6 +38,7 @@ export const retryLimit = async <T>(
   try {
     return await _retrylimit(fn)
   } catch (e) {
+    console.log(e, fn)
     if (retries > 0) {
       await wait(env.limits.MAX_WAIT_RETRY_MS)
       return await retryLimit(fn, retries - 1)
