@@ -38,8 +38,8 @@ export const retryLimit = async <T>(
   try {
     return await _retrylimit(fn)
   } catch (e) {
-    console.log(e, fn)
     if (retries > 0) {
+      if (e.message === 'queue maxDelay timeout exceeded') throw e
       await wait(env.limits.MAX_WAIT_RETRY_MS)
       return await retryLimit(fn, retries - 1)
     } else {

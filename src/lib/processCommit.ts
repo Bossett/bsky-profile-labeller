@@ -91,19 +91,16 @@ export function _processCommit(commit: Commit): Promise<void> {
         if (purgePlcDirectoryCache(did, time)) {
           logger.debug(`got identity change, refreshing plc cache of ${did}`)
         }
-        getPlcRecord(did)
       }
       if (commit.record['$type'] === 'app.bsky.actor.profile') {
         if (purgeDetailsCache(did, time)) {
           logger.debug(`got profile change, refreshing profile cache of ${did}`)
         }
-        getUserDetails(did)
       }
       if (commit.record['$type'] === 'app.bsky.feed.post') {
         if (purgeAuthorFeedCache(did, time)) {
           logger.debug(`got post, refreshing feed cache of ${did}`)
         }
-        getAuthorFeed(did)
       }
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
@@ -269,6 +266,13 @@ const knownBadCommits = new Map<number, number>()
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
 const maxCommitRetries = 3
 let activeTasks = 0
+let activePostTasks = 0
+
+function isPostTask(commit: Commit): boolean {
+  return (
+    commit.record['$type'] && commit.record['$type'] === 'app.bsky.feed.post'
+  )
+}
 
 async function queueManager() {
   do {
@@ -276,7 +280,14 @@ async function queueManager() {
       const commit = processQueue.shift()
       if (commit === undefined) break
 
+      if (isPostTask(commit) && activePostTasks > maxActiveTasks / 2) {
+        processCommit(commit)
+        continue
+      }
+
       activeTasks++
+      if (isPostTask(commit)) activePostTasks++
+
       _processCommit(commit)
         .then(() => {
           const seq = Number.parseInt(commit.meta['seq'])
@@ -294,14 +305,15 @@ async function queueManager() {
           } else {
             if (!retries) knownBadCommits.set(seq, 1)
             else knownBadCommits.set(seq, retries + 1)
-            processCommit(commit)
+            wait(env.limits.MAX_WAIT_RETRY_MS).then(() => processCommit(commit))
           }
         })
         .finally(() => {
           activeTasks--
+          if (isPostTask(commit)) activePostTasks--
         })
     }
-  } while (await wait(1000))
+  } while (await wait(10))
 }
 queueManager()
 
@@ -310,6 +322,13 @@ export async function processCommit(commit: Commit): Promise<boolean> {
   if (!(isValidCommit.did && isValidCommit.seq)) return false
 
   while (processQueue.size() >= maxActiveTasks * 10) {
+    await wait(10)
+  }
+
+  if (
+    isPostTask(commit) &&
+    activePostTasks >= maxActiveTasks * env.limits.PROPORION_POST_TASKS
+  ) {
     await wait(10)
   }
 

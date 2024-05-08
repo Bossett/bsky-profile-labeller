@@ -128,7 +128,9 @@ export default async function labelEmitter() {
         .delete(schema.label_actions)
         .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
       logger.info(
-        `emitted ${completedEvents.size} labels in ${totalEvents} events:`,
+        `emitted ${completedEvents.size} labels in ${
+          Object.keys(groupedEvents).length
+        } events:`,
       )
       for (const event of Object.keys(eventLog)) {
         logger.info(`- ${event}: ${eventLog[event]}`)

@@ -13,7 +13,7 @@ const limits = {
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
 
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 128,
+  PLC_LIMIT_MAX_CONCURRENT: 96,
   PLC_LIMIT_MAX_DELAY_MS: 100,
   PLC_LIMIT_MAX_RATE: 25_000,
   PLC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
@@ -21,8 +21,8 @@ const limits = {
   // rate limit for public API
   PUBLIC_LIMIT_MAX_CONCURRENT: 96,
   PUBLIC_LIMIT_MAX_DELAY_MS: 100,
-  PUBLIC_LIMIT_MAX_RATE: 10_000,
-  PUBLIC_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
+  PUBLIC_LIMIT_MAX_RATE: 50_000,
+  PUBLIC_LIMIT_RATE_INTERVAL_MS: 1000,
 
   MAX_RETRIES: 1, // retries for HTTP calls and attempts to process commits
   MAX_WAIT_RETRY_MS: 1000, // some HTTP calls are retried, this sets the max wait between retries
@@ -30,12 +30,13 @@ const limits = {
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 30, // sets the limit parameter requesting an author's posts - 30 is what bsky.app uses so the cache should be fresher
   DB_WRITE_INTERVAL_MS: 5 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
-  MAX_CONCURRENT_PROCESSCOMMITS: 96, // this influences # of http requests, so lower can be faster
+  MAX_CONCURRENT_PROCESSCOMMITS: 192, // this influences # of http requests, so lower can be faster
+  PROPORION_POST_TASKS: 1 / 2,
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 100, // the maximum number of label pending events before writing to the db
-  MAX_PROCESSING_TIME_MS: 5 * 1000, // the maximum time any given commit can take to process
+  MAX_PROCESSING_TIME_MS: 10 * 1000, // the maximum time any given commit can take to process
 
   PAUSE_TIMEOUT_MS: 20 * 1000, // how long can we pause operations waiting to write to the db
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)

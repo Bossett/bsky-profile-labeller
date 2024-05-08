@@ -42,10 +42,7 @@ export default async function firehoseWatcher() {
       const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
       cycleInterval = interval_ms
 
-      deltaLag =
-        deltaLag === 0
-          ? Math.max(lag, lastLag)
-          : (deltaLag + (lastLag - lag)) / 2
+      deltaLag = (deltaLag + (lastLag - lag)) / (deltaLag === 0 ? 1 : 2)
 
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
