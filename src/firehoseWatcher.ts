@@ -89,7 +89,7 @@ export default async function firehoseWatcher() {
         `plc directory cache: ${plcCacheStats.items()} items ${plcCacheStats
           .hitRate()
           .toFixed(2)}% hit (${plcCacheStats.recentExpired()} expired)`,
-        `post cache: ${postCacheStats.items()} items ${plcCacheStats
+        `post cache: ${postCacheStats.items()} items ${postCacheStats
           .hitRate()
           .toFixed(2)}% hit (${postCacheStats.recentExpired()} expired)`,
       ]
