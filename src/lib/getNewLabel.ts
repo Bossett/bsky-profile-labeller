@@ -3,7 +3,6 @@ import { AppBskyFeedDefs, AppBskyFeedGetAuthorFeed } from '@atproto/api'
 import { OperationsResult } from '@/lib/insertOperations.js'
 import getPost from '@/lib/getPost.js'
 
-import { retryLimit } from '@/env/rateLimit.js'
 import env from '@/env/env.js'
 import logger from '@/helpers/logger.js'
 

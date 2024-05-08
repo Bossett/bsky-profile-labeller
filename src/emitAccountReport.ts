@@ -17,6 +17,8 @@ export default async function emitAccountReport(
     return true
   }
 
+  let hasRetried = false
+
   try {
     await pdsLimit(() =>
       agent
@@ -25,6 +27,8 @@ export default async function emitAccountReport(
     )
   } catch (e) {
     logger.warn(`${e} from emitAccountReport attempting re-auth`)
+    if (hasRetried) return false
+    if (!hasRetried) hasRetried = true
     try {
       await reauth(agent)
     } catch (e) {
