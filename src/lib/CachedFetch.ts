@@ -42,22 +42,22 @@ class CachedFetch {
   private trackLimit() {
     if (this.results.size < this.maxSize * 2) return 0
     const initialSize = this.results.size
-    const resultsArray = Array.from(this.results.entries())
-
-    const failedAndPendingResults = resultsArray.filter(
-      (item) => item[1].failed || !item[1].completedDate,
+    const resultsArray = Array.from(this.results.entries()).filter(
+      (item) => !item[1].failed,
     )
 
-    if (failedAndPendingResults.length < this.maxSize) {
+    const pendingResults = resultsArray.filter((item) => !item[1].completedDate)
+
+    if (pendingResults.length < this.maxSize) {
       resultsArray.sort((a, b) => {
         const dateA = a[1].completedDate || 0
         const dateB = b[1].completedDate || 0
         return dateB - dateA
       })
     }
-    const sliceAt = Math.max(this.maxSize - failedAndPendingResults.length, 0)
+    const sliceAt = Math.max(this.maxSize - pendingResults.length, 0)
     const topResults = [
-      ...failedAndPendingResults.slice(0, this.maxSize),
+      ...pendingResults.slice(0, this.maxSize),
       ...resultsArray.slice(0, sliceAt),
     ]
 
@@ -118,19 +118,23 @@ class CachedFetch {
     }
   }
 
-  public purgeCacheForKey(key: string, time?: number) {
-    if (!key) return
+  public purgeCacheForKey(key: string, time?: number): boolean {
+    if (!key) return false
     if (!time) time = Date.now()
 
     const res = this.results.get(key)
-    if (!res?.completedDate) return
+    if (!res) return false
+    if (!res.completedDate) return false
 
     if ((res.completedDate ? res.completedDate : 0) < time) {
       this.results.set(key, {
         ...(this.results.get(key) as pendingResults),
         completedDate: 0,
       })
-      logger.debug(`cache purged for ${key}`)
+
+      logger.debug(
+        `cache purged for ${key} before ${new Date(time).toISOString()}`,
+      )
       return true
     } else {
       return false
@@ -160,6 +164,13 @@ class CachedFetch {
       const data = result.data
       if (data) {
         if (cacheHit) this.globalCacheHit++
+        this.results.set(url, {
+          url: url,
+          failed: false,
+          data: data,
+          completedDate: Date.now(),
+          errorReason: undefined,
+        })
         return data as any
       }
     } else {

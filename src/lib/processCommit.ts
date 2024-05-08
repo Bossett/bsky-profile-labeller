@@ -83,17 +83,22 @@ export function _processCommit(commit: Commit): Promise<void> {
       fail()
     }, env.limits.MAX_PROCESSING_TIME_MS)
 
+    const time: number = new Date(commit.meta['time']).getTime()
+
     if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
-      if (purgePlcDirectoryCache(did, new Date(commit.meta.time).getTime()))
+      if (purgePlcDirectoryCache(did, time)) {
         logger.debug(`got identity change, purging plc cache of ${did}`)
+      }
     }
     if (commit.record['$type'] === 'app.bsky.actor.profile') {
-      if (purgeDetailsCache(did, new Date(commit.meta.time).getTime()))
+      if (purgeDetailsCache(did, time)) {
         logger.debug(`got profile change, purging profile cache of ${did}`)
+      }
     }
     if (commit.record['$type'] === 'app.bsky.feed.post') {
-      if (purgeAuthorFeedCache(did, new Date(commit.meta.time).getTime()))
+      if (purgeAuthorFeedCache(did, time)) {
         logger.debug(`got post, purging feed cache of ${did}`)
+      }
     }
 
     debugString = `getting userDetails for ${did}`

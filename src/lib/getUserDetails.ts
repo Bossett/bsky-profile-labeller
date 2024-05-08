@@ -5,9 +5,6 @@ import env from '@/env/env.js'
 import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
-import Denque from 'denque'
-import logger from './logger'
-
 class UserDetailsFetch extends CachedFetch {
   private batchExecuting = false
   private lastBatchRun = Date.now()
@@ -137,6 +134,13 @@ class UserDetailsFetch extends CachedFetch {
         const data = result.data
         if (data?.did) {
           if (cacheHit) this.globalCacheHit++
+          this.results.set(url, {
+            url: url,
+            failed: false,
+            data: data,
+            completedDate: Date.now(),
+            errorReason: undefined,
+          })
           return data as AppBskyActorDefs.ProfileViewDetailed
         }
       } else {
@@ -157,16 +161,16 @@ class UserDetailsFetch extends CachedFetch {
   }
 }
 
+const userDetailsFetch = new UserDetailsFetch({
+  maxAge: env.limits.USER_DETAILS_MIN_AGE_MS,
+  maxSize: env.limits.USER_DETAILS_MAX_SIZE,
+})
+
 async function getUserDetails(
   did: string,
 ): Promise<AppBskyActorDefs.ProfileViewDetailed | { error: string }> {
   return await userDetailsFetch.getJson(did)
 }
-
-const userDetailsFetch = new UserDetailsFetch({
-  maxAge: env.limits.USER_DETAILS_MIN_AGE_MS,
-  maxSize: env.limits.USER_DETAILS_MAX_SIZE,
-})
 
 export function cacheStatistics() {
   return userDetailsFetch.cacheStatistics()
