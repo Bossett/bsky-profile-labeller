@@ -30,7 +30,7 @@ const limits = {
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 100, // sets the limit parameter requesting an author's posts - 100 is the api limit
   DB_WRITE_INTERVAL_MS: 3 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
-  MAX_CONCURRENT_PROCESSCOMMITS: 1024, // this influences # of http requests, so lower can be faster
+  MAX_CONCURRENT_PROCESSCOMMITS: 256, // this influences # of http requests, so lower can be faster
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
@@ -46,7 +46,7 @@ const limits = {
   PLC_DIRECTORY_MAX_AGE_MS: 8 * 60 * 60 * 1000,
   PLC_DIRECTORY_MAX_SIZE: 10000,
   POST_CACHE_MAX_AGE_MS: 24 * 60 * 60 * 1000,
-  POST_CACHE_MAX_SIZE: 5000,
+  POST_CACHE_MAX_SIZE: 1000,
 }
 
 const validateLimits = {

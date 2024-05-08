@@ -27,7 +27,7 @@ class CachedFetch {
     maxSize?: number
     limiter?: typeof this.limiter
   }) {
-    this.maxAge = maxAge || 3000
+    this.maxAge = maxAge || 30000
     this.maxSize = maxSize || 10000
     this.limiter = limiter
   }
@@ -42,10 +42,13 @@ class CachedFetch {
 
   private trackLimit() {
     if (this.results.size < this.maxSize * 2) return 0
+
     const initialSize = this.results.size
-    const resultsArray = Array.from(this.results.entries()).filter(
-      (item) => !item[1].failed,
-    )
+    const resultsArray = Array.from(this.results.entries()).filter((item) => {
+      if (item[1].failed) return false
+      if (this.isExpiredResult(item[1])) return false
+      return true
+    })
 
     const pendingResults = resultsArray.filter((item) => !item[1].completedDate)
 
@@ -62,11 +65,10 @@ class CachedFetch {
       ...resultsArray.slice(0, sliceAt),
     ]
 
-    this.results.clear()
+    this.results = new Map(topResults)
 
-    for (const [key, value] of topResults) {
-      if (!this.isExpiredResult(value)) this.results.set(key, value)
-    }
+    logger.debug(`final size ${this.results.size}`)
+
     return initialSize - this.results.size
   }
 
@@ -186,7 +188,7 @@ class CachedFetch {
           data: undefined,
           completedDate: undefined,
           errorReason: undefined,
-          lastUsed: Date.now(),
+          lastUsed: 0,
         })
 
         try {
@@ -198,6 +200,7 @@ class CachedFetch {
             this.results.set(url, {
               url: url,
               failed: true,
+              data: undefined,
               errorReason: `${errText}`,
               completedDate: Date.now(),
               lastUsed: Date.now(),
@@ -216,6 +219,14 @@ class CachedFetch {
             })
           }
         } catch (e) {
+          this.results.set(url, {
+            url: url,
+            failed: true,
+            data: undefined,
+            errorReason: `${e.message}`,
+            completedDate: Date.now(),
+            lastUsed: Date.now(),
+          })
           return { error: `failed to fetch (${e.message})` }
         }
       }

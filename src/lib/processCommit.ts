@@ -87,7 +87,9 @@ export function _processCommit(commit: Commit): Promise<void> {
       fail()
     }, env.limits.MAX_PROCESSING_TIME_MS)
 
-    const time: number = new Date(commit.meta['time']).getTime()
+    const time: number = commit.meta['time']
+      ? new Date(commit.meta['time']).getTime()
+      : 0
 
     if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
       if (purgePlcDirectoryCache(did, time)) {
