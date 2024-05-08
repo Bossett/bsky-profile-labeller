@@ -6,10 +6,7 @@ import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
 class UserDetailsFetch extends CachedFetch {
-  private batchExecuting = false
-  private lastBatchRun = Date.now()
-
-  private async executeBatch() {
+  protected async executeBatch() {
     if (this.batchExecuting) {
       await wait(10)
       return true
@@ -17,7 +14,7 @@ class UserDetailsFetch extends CachedFetch {
 
     this.batchExecuting = true
 
-    const maxRequestChunk = 25
+    const maxRequestChunk = this.maxBatch
     const getProfiles = (actors: string[]) =>
       pdsLimit(() => agent.app.bsky.actor.getProfiles({ actors: actors }))
 
@@ -89,7 +86,7 @@ class UserDetailsFetch extends CachedFetch {
     } catch (e) {
       if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
       this.batchExecuting = false
-      return
+      return true
     }
 
     for (const did of actors) {
@@ -148,6 +145,7 @@ class UserDetailsFetch extends CachedFetch {
         }
       } else {
         this.globalCacheMiss++
+        cacheHit = false
         this.results.set(did, {
           url: did,
           failed: false,
@@ -168,6 +166,7 @@ class UserDetailsFetch extends CachedFetch {
 const userDetailsFetch = new UserDetailsFetch({
   maxAge: env.limits.USER_DETAILS_MAX_AGE_MS,
   maxSize: env.limits.USER_DETAILS_MAX_SIZE,
+  maxBatch: 25,
 })
 
 async function getUserDetails(

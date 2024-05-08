@@ -6,6 +6,7 @@ const plcFetch = new CachedFetch({
   maxAge: env.limits.PLC_DIRECTORY_MAX_AGE_MS,
   maxSize: env.limits.PLC_DIRECTORY_MAX_SIZE,
   limiter: plcLimit,
+  maxBatch: env.limits.PLC_LIMIT_MAX_CONCURRENT,
 })
 
 export function cacheStatistics() {

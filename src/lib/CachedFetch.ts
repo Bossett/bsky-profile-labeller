@@ -1,6 +1,8 @@
 import wait from '@/helpers/wait.js'
 import logger from '@/helpers/logger.js'
 
+import Denque from 'denque'
+
 type pendingResults = {
   url: string
   completedDate?: number
@@ -14,6 +16,8 @@ class CachedFetch {
   protected results = new Map<string, pendingResults>()
   protected maxSize: number = 10000
   protected maxAge: number = 3000
+  protected maxBatch: number = 25
+
   protected limiter:
     | ((fn: () => Promise<any>, retries?: number) => Promise<Response>)
     | undefined
@@ -22,14 +26,17 @@ class CachedFetch {
     maxAge,
     maxSize,
     limiter,
+    maxBatch,
   }: {
     maxAge?: number
     maxSize?: number
     limiter?: typeof this.limiter
+    maxBatch?: number
   }) {
     this.maxAge = maxAge || 30000
     this.maxSize = maxSize || 10000
     this.limiter = limiter
+    this.maxBatch = maxBatch || 25
   }
 
   private seededRandom(seed: number) {
@@ -145,6 +152,83 @@ class CachedFetch {
     }
   }
 
+  protected batchExecuting: boolean = false
+  protected lastBatchRun: number = Date.now()
+
+  protected async executeBatch(): Promise<boolean> {
+    if (this.batchExecuting) {
+      await wait(10)
+      return true
+    }
+
+    this.batchExecuting = true
+
+    const getUrl = async (url: string) => {
+      return (
+        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
+      ).json()
+    }
+
+    const batchQueries = Array.from(this.results.keys())
+
+    const allQueries = batchQueries.filter((url) => {
+      const result = this.results.get(url)
+      if (!result) return false
+      if (this.isFailedResult(result)) return false
+      if (result.completedDate === undefined) return true
+    })
+
+    const batchSize = this.maxBatch
+    const batchQueue = new Denque<string>()
+
+    for (const query of allQueries.slice(0, batchSize)) {
+      batchQueue.push(query)
+    }
+
+    let totalRunning = 0
+
+    const promArr: Promise<any>[] = []
+
+    while (!batchQueue.isEmpty()) {
+      const query = batchQueue.shift()
+      if (query) {
+        totalRunning++
+        promArr.push(
+          getUrl(query)
+            .then((data) => {
+              this.results.set(query, {
+                url: query,
+                failed: false,
+                data: data,
+                completedDate: Date.now(),
+                errorReason: undefined,
+                lastUsed: Date.now(),
+              })
+            })
+            .catch((e) => {
+              this.results.set(query, {
+                url: query,
+                failed: true,
+                data: undefined,
+                completedDate: Date.now(),
+                errorReason: e.message,
+                lastUsed: Date.now(),
+              })
+            })
+            .finally(() => totalRunning--),
+        )
+      } else break
+      while (totalRunning >= this.maxBatch) {
+        await wait(10)
+      }
+    }
+
+    await Promise.allSettled(promArr)
+
+    this.batchExecuting = false
+    return true
+  }
+
   public async getJson(url: string): Promise<any | { error: string }> {
     let cacheHit = true
 
@@ -165,10 +249,22 @@ class CachedFetch {
         }
       }
 
+      if (!result) {
+        cacheHit = false
+        this.globalCacheMiss++
+        this.results.set(url, {
+          url: url,
+          failed: false,
+          data: undefined,
+          completedDate: undefined,
+          errorReason: undefined,
+          lastUsed: Date.now(),
+        })
+      }
+
       if (result) {
         const data = result.data
         if (data) {
-          if (cacheHit) this.globalCacheHit++
           this.results.set(url, {
             url: url,
             failed: false,
@@ -177,60 +273,12 @@ class CachedFetch {
             errorReason: undefined,
             lastUsed: Date.now(),
           })
+          if (cacheHit) this.globalCacheHit++
           return data as any
         }
-      } else {
-        this.globalCacheMiss++
-        this.results.set(url, {
-          url: url,
-          failed: false,
-          data: undefined,
-          completedDate: undefined,
-          errorReason: undefined,
-          lastUsed: 0,
-        })
-
-        try {
-          let res: Response
-          if (this.limiter) res = await this.limiter(() => fetch(url))
-          else res = await fetch(url)
-          if ([400, 500, 404].includes(res.status)) {
-            const errText = `${res.status}: ${res.statusText}`
-            this.results.set(url, {
-              url: url,
-              failed: true,
-              data: undefined,
-              errorReason: `${errText}`,
-              completedDate: Date.now(),
-              lastUsed: Date.now(),
-            })
-            return { error: `failed to fetch (${errText})` }
-          } else {
-            const json = await res.json()
-
-            this.results.set(url, {
-              url: url,
-              failed: false,
-              data: json,
-              completedDate: Date.now(),
-              errorReason: undefined,
-              lastUsed: Date.now(),
-            })
-          }
-        } catch (e) {
-          if (e.message !== 'queue maxDelay timeout exceeded') {
-            this.results.set(url, {
-              url: url,
-              failed: true,
-              data: undefined,
-              errorReason: `${e.message}`,
-              completedDate: Date.now(),
-              lastUsed: Date.now(),
-            })
-          }
-          return { error: `failed to fetch (${e.message})` }
-        }
       }
+
+      this.executeBatch()
     } while (this.results.has(url) && (await wait(10)))
 
     return { error: 'unknown error' }

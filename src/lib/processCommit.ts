@@ -266,13 +266,6 @@ const knownBadCommits = new Map<number, number>()
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
 const maxCommitRetries = 3
 let activeTasks = 0
-let activePostTasks = 0
-
-function isPostTask(commit: Commit): boolean {
-  return (
-    commit.record['$type'] && commit.record['$type'] === 'app.bsky.feed.post'
-  )
-}
 
 async function queueManager() {
   do {
@@ -280,13 +273,7 @@ async function queueManager() {
       const commit = processQueue.shift()
       if (commit === undefined) break
 
-      if (isPostTask(commit) && activePostTasks > maxActiveTasks / 2) {
-        processCommit(commit)
-        continue
-      }
-
       activeTasks++
-      if (isPostTask(commit)) activePostTasks++
 
       _processCommit(commit)
         .then(() => {
@@ -310,7 +297,6 @@ async function queueManager() {
         })
         .finally(() => {
           activeTasks--
-          if (isPostTask(commit)) activePostTasks--
         })
     }
   } while (await wait(10))
@@ -321,14 +307,7 @@ export async function processCommit(commit: Commit): Promise<boolean> {
   const isValidCommit = validateCommit(commit)
   if (!(isValidCommit.did && isValidCommit.seq)) return false
 
-  while (processQueue.size() >= maxActiveTasks * 10) {
-    await wait(10)
-  }
-
-  if (
-    isPostTask(commit) &&
-    activePostTasks >= maxActiveTasks * env.limits.PROPORION_POST_TASKS
-  ) {
+  while (processQueue.size() >= maxActiveTasks * 2) {
     await wait(10)
   }
 

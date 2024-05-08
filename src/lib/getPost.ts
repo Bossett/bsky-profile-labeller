@@ -5,10 +5,7 @@ import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
 class PostFetch extends CachedFetch {
-  private batchExecuting = false
-  private lastBatchRun = Date.now()
-
-  private async executeBatch() {
+  protected async executeBatch() {
     if (this.batchExecuting) {
       await wait(10)
       return true
@@ -101,7 +98,7 @@ class PostFetch extends CachedFetch {
     } catch (e) {
       if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
       this.batchExecuting = false
-      return
+      return true
     }
 
     for (const url of postURLs) {
@@ -159,6 +156,7 @@ class PostFetch extends CachedFetch {
           return data as AppBskyFeedDefs.PostView
         }
       } else {
+        cacheHit = false
         this.globalCacheMiss++
         this.results.set(did, {
           url: did,

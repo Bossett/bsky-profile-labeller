@@ -10,6 +10,7 @@ const fetchCachedFeed = new CachedFetch({
   maxAge: env.limits.AUTHOR_FEED_MAX_AGE_MS,
   maxSize: env.limits.AUTHOR_FEED_MAX_SIZE,
   limiter: retryLimit,
+  maxBatch: env.limits.PUBLIC_LIMIT_MAX_CONCURRENT,
 })
 
 export function cacheStatistics() {

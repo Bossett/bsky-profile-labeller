@@ -77,10 +77,10 @@ export default async function firehoseWatcher() {
       const postCacheStats = postBatchCacheStats()
 
       const logLines = [
-        `at seq: ${seq} with lag ${formatDuration(lag)}`,
-        `${timeToRealtimeStr} at ${speed.toFixed(
-          2,
-        )}ops/s, running ${formatDuration(Date.now() - firstRun)}`,
+        `${speed.toFixed(2)}ops/s, at seq: ${seq}`,
+        `${timeToRealtimeStr} with lag ${formatDuration(
+          lag,
+        )} (running ${formatDuration(Date.now() - firstRun)})`,
         `${totalItems} items: ${itemsProcessed} processed, ${skippedItems} skipped `,
         `details cache: ${detailsCacheStats.items()} items ${detailsCacheStats
           .hitRate()
