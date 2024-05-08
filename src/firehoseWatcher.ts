@@ -25,6 +25,7 @@ export default async function firehoseWatcher() {
 
   let lag = 0
   let lastLag = 0
+  let deltaLag = 0
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
 
@@ -40,7 +41,9 @@ export default async function firehoseWatcher() {
     while (await wait(cycleInterval)) {
       cycleInterval = interval_ms
 
-      const deltaLag = lastLag - lag
+      deltaLag =
+        deltaLag === 0 ? lastLag - lag : (deltaLag + (lastLag - lag)) / 2
+
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
 
@@ -100,6 +103,8 @@ export default async function firehoseWatcher() {
 
       detailsCacheStats.reset()
       authorFeedCacheStats.reset()
+      plcCacheStats.reset()
+      postCacheStats.reset()
 
       old_seq = seq
       await db

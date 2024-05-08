@@ -3,8 +3,12 @@ import { getProfileLabel } from '@/lib/getProfileLabel.js'
 import getUserDetails, {
   purgeCacheForDid as purgeDetailsCache,
 } from '@/lib/getUserDetails.js'
-import { purgeCacheForDid as purgeAuthorFeedCache } from '@/lib/getAuthorFeed.js'
-import { purgeCacheForDid as purgePlcDirectoryCache } from '@/lib/getPlcRecord.js'
+import getAuthorFeed, {
+  purgeCacheForDid as purgeAuthorFeedCache,
+} from '@/lib/getAuthorFeed.js'
+import getPlcRecord, {
+  purgeCacheForDid as purgePlcDirectoryCache,
+} from '@/lib/getPlcRecord.js'
 import { getExpiringLabels } from '@/lib/getExpiringLabels.js'
 import {
   OperationsResult,
@@ -87,17 +91,20 @@ export function _processCommit(commit: Commit): Promise<void> {
 
     if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
       if (purgePlcDirectoryCache(did, time)) {
-        logger.debug(`got identity change, purging plc cache of ${did}`)
+        logger.debug(`got identity change, refreshing plc cache of ${did}`)
+        getPlcRecord(did)
       }
     }
     if (commit.record['$type'] === 'app.bsky.actor.profile') {
       if (purgeDetailsCache(did, time)) {
-        logger.debug(`got profile change, purging profile cache of ${did}`)
+        logger.debug(`got profile change, refreshing profile cache of ${did}`)
+        getUserDetails(did)
       }
     }
     if (commit.record['$type'] === 'app.bsky.feed.post') {
       if (purgeAuthorFeedCache(did, time)) {
-        logger.debug(`got post, purging feed cache of ${did}`)
+        logger.debug(`got post, refreshing feed cache of ${did}`)
+        getAuthorFeed(did)
       }
     }
 

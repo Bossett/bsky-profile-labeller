@@ -1,4 +1,4 @@
-import env from '@/env/env.js'
+import wait from '@/helpers/wait.js'
 import logger from '@/helpers/logger.js'
 
 type pendingResults = {
@@ -51,8 +51,8 @@ class CachedFetch {
 
     if (pendingResults.length < this.maxSize) {
       resultsArray.sort((a, b) => {
-        const dateA = a[1].completedDate || 0
-        const dateB = b[1].completedDate || 0
+        const dateA = a[1].lastUsed
+        const dateB = b[1].lastUsed
         return dateB - dateA
       })
     }
@@ -76,7 +76,8 @@ class CachedFetch {
     if (
       result.completedDate <
       Date.now() -
-        (this.maxAge + Math.floor(this.seededRandom(result.completedDate)))
+        (this.maxAge +
+          Math.floor(this.maxAge * this.seededRandom(result.completedDate)))
     ) {
       return true
     } else return false
@@ -110,6 +111,7 @@ class CachedFetch {
 
   public scavengeExpired() {
     this.lastScavengeCount = this.trackLimit()
+    if (this.lastScavengeCount > 0) return
 
     for (const [url, result] of this.results) {
       if (this.isExpiredResult(result)) {
@@ -127,7 +129,7 @@ class CachedFetch {
     if (!res) return false
     if (!res.completedDate) return false
 
-    if ((res.completedDate ? res.completedDate : 0) < time) {
+    if (res.completedDate < time) {
       this.results.set(key, {
         ...(this.results.get(key) as pendingResults),
         completedDate: 0,
@@ -145,70 +147,79 @@ class CachedFetch {
   public async getJson(url: string): Promise<any | { error: string }> {
     let cacheHit = true
 
-    let result = this.results.get(url)
+    do {
+      let result = this.results.get(url)
 
-    if (result && this.isExpiredResult(result)) {
-      this.results.delete(url)
-      result = undefined
-    }
-
-    if (result && this.isFailedResult(result)) {
-      if (cacheHit) this.globalCacheHit++
-      return {
-        error:
-          (`${this.results.get(url)?.errorReason}` || 'unknown') +
-          `${cacheHit ? ' (cached)' : ''}`,
+      if (result && this.isExpiredResult(result)) {
+        this.results.delete(url)
+        result = undefined
       }
-    }
 
-    if (result) {
-      const data = result.data
-      if (data) {
+      if (result && this.isFailedResult(result)) {
         if (cacheHit) this.globalCacheHit++
-        this.results.set(url, {
-          url: url,
-          failed: false,
-          data: data,
-          completedDate: result.completedDate,
-          errorReason: undefined,
-          lastUsed: Date.now(),
-        })
-        return data as any
+        return {
+          error:
+            (`${this.results.get(url)?.errorReason}` || 'unknown') +
+            `${cacheHit ? ' (cached)' : ''}`,
+        }
       }
-    } else {
-      this.globalCacheMiss++
 
-      try {
-        let res: Response
-        if (this.limiter) res = await this.limiter(() => fetch(url))
-        else res = await fetch(url)
-        if ([400, 500, 404].includes(res.status)) {
-          const errText = `${res.status}: ${res.statusText}`
-          this.results.set(url, {
-            url: url,
-            failed: true,
-            errorReason: `${errText}`,
-            completedDate: Date.now(),
-            lastUsed: Date.now(),
-          })
-          return { error: `failed to fetch (${errText})` }
-        } else {
-          const json = await res.json()
-
+      if (result) {
+        const data = result.data
+        if (data) {
+          if (cacheHit) this.globalCacheHit++
           this.results.set(url, {
             url: url,
             failed: false,
-            data: json as any,
-            completedDate: Date.now(),
+            data: data,
+            completedDate: result.completedDate,
             errorReason: undefined,
             lastUsed: Date.now(),
           })
-          return json as any
+          return data as any
         }
-      } catch (e) {
-        return { error: `failed to fetch (${e.message})` }
+      } else {
+        this.globalCacheMiss++
+        this.results.set(url, {
+          url: url,
+          failed: false,
+          data: undefined,
+          completedDate: undefined,
+          errorReason: undefined,
+          lastUsed: Date.now(),
+        })
+
+        try {
+          let res: Response
+          if (this.limiter) res = await this.limiter(() => fetch(url))
+          else res = await fetch(url)
+          if ([400, 500, 404].includes(res.status)) {
+            const errText = `${res.status}: ${res.statusText}`
+            this.results.set(url, {
+              url: url,
+              failed: true,
+              errorReason: `${errText}`,
+              completedDate: Date.now(),
+              lastUsed: Date.now(),
+            })
+            return { error: `failed to fetch (${errText})` }
+          } else {
+            const json = await res.json()
+
+            this.results.set(url, {
+              url: url,
+              failed: false,
+              data: json,
+              completedDate: Date.now(),
+              errorReason: undefined,
+              lastUsed: Date.now(),
+            })
+          }
+        } catch (e) {
+          return { error: `failed to fetch (${e.message})` }
+        }
       }
-    }
+    } while (await wait(1))
 
     return { error: 'unknown error' }
   }
