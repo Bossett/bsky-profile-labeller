@@ -39,14 +39,16 @@ const limits = {
 
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 60 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
-  USER_DETAILS_MAX_SIZE: 5000,
+  USER_DETAILS_MAX_SIZE: 10000,
   AUTHOR_FEED_MAX_AGE_MS: 8 * 60 * 60 * 1000, // as above for author feed, resets on post
-  AUTHOR_FEED_MAX_SIZE: 5000,
+  AUTHOR_FEED_MAX_SIZE: 10000,
   PLC_DIRECTORY_MAX_AGE_MS: 8 * 60 * 60 * 1000,
-  PLC_DIRECTORY_MAX_SIZE: 7500,
+  PLC_DIRECTORY_MAX_SIZE: 15000,
   POST_CACHE_MAX_AGE_MS: 24 * 60 * 60 * 1000,
   POST_CACHE_MAX_SIZE: 2500,
   MAX_BATCH_WAIT_TIME_MS: 100,
+  BATCH_CYCLE_WAIT_MS: 10,
+  BATCH_CYCLE_TIMEOUT_MS: 3000,
 }
 
 const validateLimits = {

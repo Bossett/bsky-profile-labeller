@@ -20,6 +20,11 @@ class CachedFetch {
   protected maxAge: number = 3000
   protected maxBatch: number = 25
 
+  private cycleWait: number = env.limits.BATCH_CYCLE_WAIT_MS || 10
+  private cycleTimeout: number = env.limits.BATCH_CYCLE_TIMEOUT_MS || 3000
+
+  private timeoutFailures: number = 0
+
   protected limiter:
     | ((fn: () => Promise<any>, retries?: number) => Promise<Response>)
     | undefined
@@ -137,6 +142,7 @@ class CachedFetch {
         this.globalCacheHit = 0
         this.globalCacheMiss = 0
         this.globalCacheExpired = 0
+        this.timeoutFailures = 0
         this.scavengeExpired()
       },
     }
@@ -237,12 +243,12 @@ class CachedFetch {
         }
       } else break
       while (this.currentRunningQueries.size >= this.maxBatch) {
-        await wait(10)
+        await wait(this.cycleWait)
       }
     }
 
     while (this.currentRunningQueries.size > 0) {
-      await wait(10)
+      await wait(this.cycleWait)
     }
 
     this.lastBatchRun = Date.now()
@@ -253,7 +259,7 @@ class CachedFetch {
   private async _executeBatch() {
     let res: boolean = true
     if (!(await this.acquireLock())) {
-      await wait(10)
+      await wait(this.cycleWait)
       return res
     }
     try {
@@ -271,7 +277,7 @@ class CachedFetch {
     let cycleCount = 0
 
     do {
-      if (cycleCount > 300) timeoutExceed = true
+      if (cycleCount > this.cycleTimeout / this.cycleWait) timeoutExceed = true
       cycleCount++
 
       if (!this.results.has(url)) {
@@ -345,7 +351,16 @@ class CachedFetch {
       this.results.has(url)
     )
 
-    if (timeoutExceed) logger.debug(`timeout for ${url}`)
+    if (timeoutExceed) {
+      logger.debug(`timeout for ${url}`)
+      this.timeoutFailures++
+    }
+
+    if (this.timeoutFailures > 20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)) {
+      logger.warn(`${this.timeoutFailures} (this fetching ${url})`)
+      this.timeoutFailures = 0
+    }
+
     return { error: 'timeout' }
   }
 }
