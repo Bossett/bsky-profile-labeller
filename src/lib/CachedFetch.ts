@@ -271,7 +271,7 @@ class CachedFetch {
     let cycleCount = 0
 
     do {
-      if (cycleCount > 500) timeoutExceed = true
+      if (cycleCount > 300) timeoutExceed = true
       cycleCount++
 
       if (!this.results.has(url)) {
@@ -345,7 +345,7 @@ class CachedFetch {
       this.results.has(url)
     )
 
-    if (timeoutExceed) logger.warn(`timeout for ${url}`)
+    if (timeoutExceed) logger.debug(`timeout for ${url}`)
     return { error: 'timeout' }
   }
 }
