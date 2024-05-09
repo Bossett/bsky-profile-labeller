@@ -180,79 +180,88 @@ class CachedFetch {
   protected currentRunningQueries = new Set<string>()
 
   protected async executeBatch(): Promise<boolean> {
-    if (!(await this.acquireLock())) return true
-    try {
-      const batchQueries = Array.from(this.results.keys())
+    const batchQueries = Array.from(this.results.keys())
 
-      const allQueries = batchQueries.filter((url) => {
-        const result = this.results.get(url)
-        if (!result) return false
-        if (result.completedDate === undefined) return true
-        return false
-      })
+    const allQueries = batchQueries.filter((url) => {
+      const result = this.results.get(url)
+      if (!result) return false
+      if (result.completedDate === undefined) return true
+      return false
+    })
 
-      const batchQueue = new Denque<string>()
+    const batchQueue = new Denque<string>()
 
-      const getUrl = async (url: string) => {
-        return (
-          await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
-        ).json()
-      }
+    const getUrl = async (url: string) => {
+      return (
+        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
+      ).json()
+    }
 
-      this.batchExecuting = true
+    for (const query of allQueries) {
+      batchQueue.push(query)
+    }
 
-      for (const query of allQueries) {
-        batchQueue.push(query)
-      }
+    while (!batchQueue.isEmpty()) {
+      const query = batchQueue.shift()
 
-      while (!batchQueue.isEmpty()) {
-        const query = batchQueue.shift()
+      if (query) {
+        if (!this.currentRunningQueries.has(query)) {
+          this.currentRunningQueries.add(query)
 
-        if (query) {
-          if (!this.currentRunningQueries.has(query)) {
-            this.currentRunningQueries.add(query)
-
-            getUrl(query)
-              .then((data) => {
-                this.results.set(query, {
-                  url: query,
-                  failed: false,
-                  data: data,
-                  completedDate: Date.now(),
-                  errorReason: undefined,
-                  lastUsed: Date.now(),
-                })
-                this.currentRunningQueries.delete(query)
+          getUrl(query)
+            .then((data) => {
+              this.results.set(query, {
+                url: query,
+                failed: false,
+                data: data,
+                completedDate: Date.now(),
+                errorReason: undefined,
+                lastUsed: Date.now(),
               })
-              .catch((e) => {
-                this.results.set(query, {
-                  url: query,
-                  failed: true,
-                  data: undefined,
-                  completedDate: Date.now(),
-                  errorReason: e.message,
-                  lastUsed: Date.now(),
-                })
-                this.currentRunningQueries.delete(query)
+              this.currentRunningQueries.delete(query)
+            })
+            .catch((e) => {
+              this.results.set(query, {
+                url: query,
+                failed: true,
+                data: undefined,
+                completedDate: Date.now(),
+                errorReason: e.message,
+                lastUsed: Date.now(),
               })
-              .finally(() => {
-                this.currentRunningQueries.delete(query)
-              })
-          }
-        } else break
-        while (this.currentRunningQueries.size >= this.maxBatch) {
-          await wait(10)
+              this.currentRunningQueries.delete(query)
+            })
+            .finally(() => {
+              this.currentRunningQueries.delete(query)
+            })
         }
-      }
-
-      while (this.currentRunningQueries.size > 0) {
+      } else break
+      while (this.currentRunningQueries.size >= this.maxBatch) {
         await wait(10)
       }
+    }
+
+    while (this.currentRunningQueries.size > 0) {
+      await wait(10)
+    }
+
+    this.lastBatchRun = Date.now()
+
+    return true
+  }
+
+  private async _executeBatch() {
+    let res: boolean = true
+    if (!(await this.acquireLock())) {
+      await wait(10)
+      return res
+    }
+    try {
+      res = await this.executeBatch()
     } finally {
-      this.lastBatchRun = Date.now()
       this.releaseLock()
     }
-    return true
+    return res
   }
 
   public async getJson(url: string): Promise<any | { error: string }> {
@@ -331,7 +340,7 @@ class CachedFetch {
         }
       }
     } while (
-      (await this.executeBatch()) &&
+      (await this._executeBatch()) &&
       !timeoutExceed &&
       this.results.has(url)
     )

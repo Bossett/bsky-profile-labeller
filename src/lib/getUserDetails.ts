@@ -7,92 +7,88 @@ import CachedFetch from '@/lib/CachedFetch.js'
 
 class UserDetailsFetch extends CachedFetch {
   protected async executeBatch() {
-    if (!(await this.acquireLock())) return true
+    const maxRequestChunk = this.maxBatch
+    const getProfiles = (actors: string[]) =>
+      pdsLimit(() => agent.app.bsky.actor.getProfiles({ actors: actors }))
+
+    const batchDids = Array.from(this.results.keys()).sort()
+
+    const allActors: string[] = batchDids.filter((did) => {
+      const result = this.results.get(did)
+      if (!result) return false
+      if (this.isFailedResult(result)) return false
+      if (result.completedDate === undefined) return true
+    })
+
+    const retryExpired =
+      Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
+
+    if (allActors.length < maxRequestChunk && !retryExpired) {
+      await wait(10)
+      return true
+    }
+
+    const sliceAt = retryExpired
+      ? allActors.length
+      : Math.max(0, allActors.length - (allActors.length % maxRequestChunk))
+
+    const actors = allActors.slice(0, sliceAt)
+
+    const foundActors = new Set<string>()
+
     try {
-      const maxRequestChunk = this.maxBatch
-      const getProfiles = (actors: string[]) =>
-        pdsLimit(() => agent.app.bsky.actor.getProfiles({ actors: actors }))
+      const resPromises: Promise<any>[] = []
 
-      const batchDids = Array.from(this.results.keys()).sort()
-
-      const allActors: string[] = batchDids.filter((did) => {
-        const result = this.results.get(did)
-        if (!result) return false
-        if (this.isFailedResult(result)) return false
-        if (result.completedDate === undefined) return true
-      })
-
-      const retryExpired =
-        Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
-
-      if (allActors.length < maxRequestChunk && !retryExpired) {
-        this.releaseLock()
-        await wait(10)
-        return true
+      for (let i = 0; i < actors.length; i += maxRequestChunk) {
+        const actorsChunk = actors.slice(i, i + maxRequestChunk)
+        resPromises.push(getProfiles(actorsChunk))
       }
 
-      const sliceAt = retryExpired
-        ? allActors.length
-        : Math.max(0, allActors.length - (allActors.length % maxRequestChunk))
+      const profileResults = (await Promise.all(resPromises)).reduce(
+        (acc, item) => ({
+          data: {
+            profiles: [...acc.data.profiles, ...item.data.profiles],
+          },
+        }),
+        { data: { profiles: [] } },
+      )
 
-      const actors = allActors.slice(0, sliceAt)
-
-      const foundActors = new Set<string>()
-
-      try {
-        const resPromises: Promise<any>[] = []
-
-        for (let i = 0; i < actors.length; i += maxRequestChunk) {
-          const actorsChunk = actors.slice(i, i + maxRequestChunk)
-          resPromises.push(getProfiles(actorsChunk))
-        }
-
-        const profileResults = (await Promise.all(resPromises)).reduce(
-          (acc, item) => ({
-            data: {
-              profiles: [...acc.data.profiles, ...item.data.profiles],
-            },
-          }),
-          { data: { profiles: [] } },
-        )
-
-        const profiles = profileResults.data.profiles.reduce(
-          (map, profile) => ({ ...map, [profile.did]: profile }),
-          {},
-        )
-
-        for (const did of actors) {
-          if (profiles[did]) {
-            this.results.set(did, {
-              data: profiles[did],
-              completedDate: Date.now(),
-              url: did,
-              failed: false,
-              lastUsed: Date.now(),
-            })
-            foundActors.add(did)
-          }
-        }
-      } catch (e) {
-        this.batchExecuting = false
-        return true
-      }
+      const profiles = profileResults.data.profiles.reduce(
+        (map, profile) => ({ ...map, [profile.did]: profile }),
+        {},
+      )
 
       for (const did of actors) {
-        if (!foundActors.has(did)) {
+        if (profiles[did]) {
           this.results.set(did, {
-            url: did,
-            failed: true,
-            errorReason: 'not found',
+            data: profiles[did],
             completedDate: Date.now(),
+            url: did,
+            failed: false,
             lastUsed: Date.now(),
           })
+          foundActors.add(did)
         }
       }
-    } finally {
-      this.lastBatchRun = Date.now()
-      this.releaseLock()
+    } catch (e) {
+      this.batchExecuting = false
+      return true
     }
+
+    for (const did of actors) {
+      if (!foundActors.has(did)) {
+        this.results.set(did, {
+          url: did,
+          failed: true,
+          errorReason: 'not found',
+          completedDate: Date.now(),
+          lastUsed: Date.now(),
+        })
+      }
+    }
+
+    this.lastBatchRun = Date.now()
+
     return true
   }
 }
