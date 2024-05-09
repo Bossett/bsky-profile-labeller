@@ -8,7 +8,7 @@ import CachedFetch from '@/lib/CachedFetch.js'
 class UserDetailsFetch extends CachedFetch {
   protected async executeBatch() {
     if (this.batchExecuting) {
-      await wait(10)
+      await wait(1)
       return true
     }
 
@@ -28,11 +28,11 @@ class UserDetailsFetch extends CachedFetch {
     })
 
     const retryExpired =
-      Date.now() - this.lastBatchRun > env.limits.MAX_WAIT_RETRY_MS
+      Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
 
     if (allActors.length < maxRequestChunk && !retryExpired) {
       this.batchExecuting = false
-      await wait(10)
+      await wait(1)
       return true
     }
 
@@ -105,61 +105,6 @@ class UserDetailsFetch extends CachedFetch {
 
     this.batchExecuting = false
     return true
-  }
-
-  public async getJson(
-    url: string,
-  ): Promise<AppBskyActorDefs.ProfileViewDetailed | { error: string }> {
-    let cacheHit = true
-    const did = url
-    do {
-      const result = this.results.get(did)
-
-      if (result && this.isExpiredResult(result)) {
-        this.results.delete(did)
-        continue
-      }
-
-      if (result && this.isFailedResult(result)) {
-        if (cacheHit) this.globalCacheHit++
-        return {
-          error:
-            (`${this.results.get(did)?.errorReason}` || 'unknown') +
-            `${cacheHit ? ' (cached)' : ''}`,
-        }
-      }
-
-      if (result) {
-        const data = result.data
-        if (data?.did) {
-          if (cacheHit) this.globalCacheHit++
-          this.results.set(did, {
-            url: did,
-            failed: false,
-            data: data,
-            completedDate: result.completedDate,
-            errorReason: undefined,
-            lastUsed: Date.now(),
-          })
-          return data as AppBskyActorDefs.ProfileViewDetailed
-        }
-      } else {
-        this.globalCacheMiss++
-        cacheHit = false
-        this.results.set(did, {
-          url: did,
-          failed: false,
-          data: undefined,
-          completedDate: undefined,
-          errorReason: undefined,
-          lastUsed: 0,
-        })
-      }
-
-      await this.executeBatch()
-    } while (this.results.has(did) && (await wait(10)))
-
-    return { error: 'unknown error' }
   }
 }
 

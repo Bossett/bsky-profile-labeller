@@ -87,20 +87,25 @@ export function _processCommit(commit: Commit): Promise<void> {
         ? new Date(commit.meta['time']).getTime()
         : 0
 
+      const promCacheArr: Promise<any>[] = []
+
       if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
         if (purgePlcDirectoryCache(did, time)) {
           logger.debug(`got identity change, refreshing plc cache of ${did}`)
         }
+        promCacheArr.push(getPlcRecord(did))
       }
       if (commit.record['$type'] === 'app.bsky.actor.profile') {
         if (purgeDetailsCache(did, time)) {
           logger.debug(`got profile change, refreshing profile cache of ${did}`)
         }
+        promCacheArr.push(getUserDetails(did))
       }
       if (commit.record['$type'] === 'app.bsky.feed.post') {
         if (purgeAuthorFeedCache(did, time)) {
           logger.debug(`got post, refreshing feed cache of ${did}`)
         }
+        promCacheArr.push(getAuthorFeed(did))
       }
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
@@ -265,41 +270,45 @@ const processQueue = new Denque<Commit>()
 const knownBadCommits = new Map<number, number>()
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
 const maxCommitRetries = 3
-let activeTasks = 0
+let runningCommits = new Set<number>()
 
 async function queueManager() {
   do {
-    while (!processQueue.isEmpty() && activeTasks <= maxActiveTasks) {
+    while (!processQueue.isEmpty() && runningCommits.size <= maxActiveTasks) {
       const commit = processQueue.shift()
-      if (commit === undefined) break
 
-      activeTasks++
+      if (!commit) continue
+      const seq = Number.parseInt(commit.meta['seq'])
+      if (runningCommits.has(seq)) continue
+
+      const thisNumRetries = knownBadCommits.get(seq) || 0
+      if (thisNumRetries >= maxCommitRetries) {
+        continue
+      }
+
+      runningCommits.add(seq)
 
       _processCommit(commit)
         .then(() => {
-          const seq = Number.parseInt(commit.meta['seq'])
-          knownBadCommits.delete(seq)
+          if (knownBadCommits.delete(seq))
+            logger.debug(`${seq} succeeded on retry`)
         })
         .catch(() => {
-          const seq = Number.parseInt(commit.meta['seq'])
           const retries = knownBadCommits.get(seq)
 
           if (retries && retries >= maxCommitRetries) {
+            logger.warn(`${seq} failed to process after ${retries} retries`)
             knownBadCommits.delete(seq)
-            logger.warn(
-              `${seq} failed to process after ${maxCommitRetries} retries`,
-            )
           } else {
             if (!retries) knownBadCommits.set(seq, 1)
             else knownBadCommits.set(seq, retries + 1)
-            wait(env.limits.MAX_WAIT_RETRY_MS).then(() => processCommit(commit))
+            processQueue.unshift(commit)
           }
         })
-        .finally(() => {
-          activeTasks--
-        })
+        .finally(() => runningCommits.delete(seq))
     }
-  } while (await wait(10))
+    knownBadCommits.clear()
+  } while (await wait(1))
 }
 queueManager()
 
@@ -307,8 +316,8 @@ export async function processCommit(commit: Commit): Promise<boolean> {
   const isValidCommit = validateCommit(commit)
   if (!(isValidCommit.did && isValidCommit.seq)) return false
 
-  while (processQueue.size() >= maxActiveTasks * 2) {
-    await wait(10)
+  while (processQueue.size() >= env.limits.PROCESS_QUEUE_BUFFER) {
+    await wait(1)
   }
 
   processQueue.push(commit)

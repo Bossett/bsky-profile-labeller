@@ -1,6 +1,6 @@
 import { AppBskyFeedGetAuthorFeed } from '@atproto/api'
 import env from '@/env/env.js'
-import { retryLimit } from '@/env/rateLimit.js'
+import { publicLimit } from '@/env/rateLimit.js'
 
 import CachedFetch from '@/lib/CachedFetch.js'
 
@@ -9,7 +9,7 @@ const limit = env.limits.AUTHOR_FEED_MAX_RESULTS
 const fetchCachedFeed = new CachedFetch({
   maxAge: env.limits.AUTHOR_FEED_MAX_AGE_MS,
   maxSize: env.limits.AUTHOR_FEED_MAX_SIZE,
-  limiter: retryLimit,
+  limiter: publicLimit,
   maxBatch: env.limits.PUBLIC_LIMIT_MAX_CONCURRENT,
 })
 

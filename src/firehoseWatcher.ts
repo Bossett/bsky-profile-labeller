@@ -26,6 +26,7 @@ export default async function firehoseWatcher() {
   let lag = 0
   let lastLag = 0
   let deltaLag = 0
+  let cycleCount = 0
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
 
@@ -40,9 +41,12 @@ export default async function firehoseWatcher() {
     let cycleInterval = interval_ms - (Date.now() % interval_ms)
     while (await wait(cycleInterval)) {
       const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
-      cycleInterval = interval_ms
 
-      deltaLag = (deltaLag + (lastLag - lag)) / (deltaLag === 0 ? 1 : 2)
+      cycleCount++
+      deltaLag =
+        cycleCount <= 2
+          ? 0
+          : (deltaLag * (cycleCount - 1) + (lag - lastLag)) / cycleCount
 
       let timeToRealtimeStr: string
       let isSlowingDown: boolean
@@ -59,7 +63,7 @@ export default async function firehoseWatcher() {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
         isSlowingDown = false
-      } else if (lastLag !== 0) {
+      } else {
         timeToRealtimeStr = `not catching up`
         isSlowingDown = true
       }
@@ -77,7 +81,7 @@ export default async function firehoseWatcher() {
       const postCacheStats = postBatchCacheStats()
 
       const logLines = [
-        `${speed.toFixed(2)}ops/s, at seq: ${seq}`,
+        `${speed.toFixed(2)} ops/s, at seq: ${seq}`,
         `${timeToRealtimeStr} with lag ${formatDuration(
           lag,
         )} (running ${formatDuration(Date.now() - firstRun)})`,
@@ -130,6 +134,8 @@ export default async function firehoseWatcher() {
 
       itemsSkipped = 0
       itemsProcessed = 0
+
+      cycleInterval = interval_ms - (Date.now() % interval_ms)
     }
   }
 

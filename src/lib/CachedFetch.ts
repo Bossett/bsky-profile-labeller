@@ -1,6 +1,8 @@
 import wait from '@/helpers/wait.js'
 import logger from '@/helpers/logger.js'
 
+import env from '@/env/env.js'
+
 import Denque from 'denque'
 
 type pendingResults = {
@@ -154,19 +156,12 @@ class CachedFetch {
 
   protected batchExecuting: boolean = false
   protected lastBatchRun: number = Date.now()
+  protected currentRunningQueries = new Set<string>()
 
   protected async executeBatch(): Promise<boolean> {
     if (this.batchExecuting) {
-      await wait(10)
+      await wait(1)
       return true
-    }
-
-    this.batchExecuting = true
-
-    const getUrl = async (url: string) => {
-      return (
-        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
-      ).json()
     }
 
     const batchQueries = Array.from(this.results.keys())
@@ -174,26 +169,31 @@ class CachedFetch {
     const allQueries = batchQueries.filter((url) => {
       const result = this.results.get(url)
       if (!result) return false
-      if (this.isFailedResult(result)) return false
       if (result.completedDate === undefined) return true
+      return false
     })
 
-    const batchSize = this.maxBatch
     const batchQueue = new Denque<string>()
 
-    for (const query of allQueries.slice(0, batchSize)) {
+    const getUrl = async (url: string) => {
+      return (
+        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
+      ).json()
+    }
+
+    this.batchExecuting = true
+
+    for (const query of allQueries) {
       batchQueue.push(query)
     }
 
-    let totalRunning = 0
-
-    const promArr: Promise<any>[] = []
-
     while (!batchQueue.isEmpty()) {
       const query = batchQueue.shift()
+
       if (query) {
-        totalRunning++
-        promArr.push(
+        if (!this.currentRunningQueries.has(query)) {
+          this.currentRunningQueries.add(query)
+
           getUrl(query)
             .then((data) => {
               this.results.set(query, {
@@ -215,16 +215,21 @@ class CachedFetch {
                 lastUsed: Date.now(),
               })
             })
-            .finally(() => totalRunning--),
-        )
+            .finally(() => {
+              this.currentRunningQueries.delete(query)
+            })
+        }
       } else break
-      while (totalRunning >= this.maxBatch) {
-        await wait(10)
+      while (this.currentRunningQueries.size >= this.maxBatch) {
+        await wait(1)
       }
     }
 
-    await Promise.allSettled(promArr)
+    while (this.currentRunningQueries.size > 0) {
+      await wait(1)
+    }
 
+    this.lastBatchRun = Date.now()
     this.batchExecuting = false
     return true
   }
@@ -233,23 +238,7 @@ class CachedFetch {
     let cacheHit = true
 
     do {
-      let result = this.results.get(url)
-
-      if (result && this.isExpiredResult(result)) {
-        this.results.delete(url)
-        result = undefined
-      }
-
-      if (result && this.isFailedResult(result)) {
-        if (cacheHit) this.globalCacheHit++
-        return {
-          error:
-            (`${result.errorReason}` || 'unknown') +
-            `${cacheHit ? ' (cached)' : ''}`,
-        }
-      }
-
-      if (!result) {
+      if (!this.results.has(url)) {
         cacheHit = false
         this.globalCacheMiss++
         this.results.set(url, {
@@ -260,6 +249,24 @@ class CachedFetch {
           errorReason: undefined,
           lastUsed: Date.now(),
         })
+        continue
+      }
+
+      const result = this.results.get(url)
+      if (!result) continue
+
+      if (this.isExpiredResult(result)) {
+        this.purgeCacheForKey(url)
+        continue
+      }
+
+      if (this.isFailedResult(result)) {
+        if (cacheHit) this.globalCacheHit++
+        return {
+          error:
+            (`${result.errorReason}` || 'unknown') +
+            `${cacheHit ? ' (cached)' : ''}`,
+        }
       }
 
       if (result) {
@@ -275,11 +282,18 @@ class CachedFetch {
           })
           if (cacheHit) this.globalCacheHit++
           return data as any
+        } else {
+          this.results.set(url, {
+            url: url,
+            failed: result.failed,
+            data: result.data,
+            completedDate: result.completedDate,
+            errorReason: result.errorReason,
+            lastUsed: Date.now(),
+          })
         }
       }
-
-      this.executeBatch()
-    } while (this.results.has(url) && (await wait(10)))
+    } while (await this.executeBatch())
 
     return { error: 'unknown error' }
   }
