@@ -41,6 +41,27 @@ class CachedFetch {
     this.maxBatch = maxBatch || 25
   }
 
+  private lock: Promise<void> | null = null
+  private unlock: (() => void) | null = null
+
+  protected async acquireLock(): Promise<boolean> {
+    if (this.lock) {
+      return false
+    }
+    this.lock = new Promise((resolve) => {
+      this.unlock = resolve
+    })
+    return true
+  }
+
+  protected releaseLock(): void {
+    if (this.unlock) {
+      this.unlock()
+      this.unlock = null
+    }
+    this.lock = null
+  }
+
   private seededRandom(seed: number) {
     const a = 1664525
     const c = 1013904223
@@ -159,85 +180,91 @@ class CachedFetch {
   protected currentRunningQueries = new Set<string>()
 
   protected async executeBatch(): Promise<boolean> {
-    if (this.batchExecuting) {
-      await wait(1)
-      return true
-    }
+    if (!(await this.acquireLock())) return true
+    try {
+      const batchQueries = Array.from(this.results.keys())
 
-    const batchQueries = Array.from(this.results.keys())
+      const allQueries = batchQueries.filter((url) => {
+        const result = this.results.get(url)
+        if (!result) return false
+        if (result.completedDate === undefined) return true
+        return false
+      })
 
-    const allQueries = batchQueries.filter((url) => {
-      const result = this.results.get(url)
-      if (!result) return false
-      if (result.completedDate === undefined) return true
-      return false
-    })
+      const batchQueue = new Denque<string>()
 
-    const batchQueue = new Denque<string>()
-
-    const getUrl = async (url: string) => {
-      return (
-        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
-      ).json()
-    }
-
-    this.batchExecuting = true
-
-    for (const query of allQueries) {
-      batchQueue.push(query)
-    }
-
-    while (!batchQueue.isEmpty()) {
-      const query = batchQueue.shift()
-
-      if (query) {
-        if (!this.currentRunningQueries.has(query)) {
-          this.currentRunningQueries.add(query)
-
-          getUrl(query)
-            .then((data) => {
-              this.results.set(query, {
-                url: query,
-                failed: false,
-                data: data,
-                completedDate: Date.now(),
-                errorReason: undefined,
-                lastUsed: Date.now(),
-              })
-            })
-            .catch((e) => {
-              this.results.set(query, {
-                url: query,
-                failed: true,
-                data: undefined,
-                completedDate: Date.now(),
-                errorReason: e.message,
-                lastUsed: Date.now(),
-              })
-            })
-            .finally(() => {
-              this.currentRunningQueries.delete(query)
-            })
-        }
-      } else break
-      while (this.currentRunningQueries.size >= this.maxBatch) {
-        await wait(1)
+      const getUrl = async (url: string) => {
+        return (
+          await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
+        ).json()
       }
-    }
 
-    while (this.currentRunningQueries.size > 0) {
-      await wait(1)
-    }
+      this.batchExecuting = true
 
-    this.lastBatchRun = Date.now()
-    this.batchExecuting = false
+      for (const query of allQueries) {
+        batchQueue.push(query)
+      }
+
+      while (!batchQueue.isEmpty()) {
+        const query = batchQueue.shift()
+
+        if (query) {
+          if (!this.currentRunningQueries.has(query)) {
+            this.currentRunningQueries.add(query)
+
+            getUrl(query)
+              .then((data) => {
+                this.results.set(query, {
+                  url: query,
+                  failed: false,
+                  data: data,
+                  completedDate: Date.now(),
+                  errorReason: undefined,
+                  lastUsed: Date.now(),
+                })
+                this.currentRunningQueries.delete(query)
+              })
+              .catch((e) => {
+                this.results.set(query, {
+                  url: query,
+                  failed: true,
+                  data: undefined,
+                  completedDate: Date.now(),
+                  errorReason: e.message,
+                  lastUsed: Date.now(),
+                })
+                this.currentRunningQueries.delete(query)
+              })
+              .finally(() => {
+                this.currentRunningQueries.delete(query)
+              })
+          }
+        } else break
+        while (this.currentRunningQueries.size >= this.maxBatch) {
+          await wait(10)
+        }
+      }
+
+      while (this.currentRunningQueries.size > 0) {
+        await wait(10)
+      }
+    } finally {
+      this.lastBatchRun = Date.now()
+      this.releaseLock()
+    }
     return true
   }
 
   public async getJson(url: string): Promise<any | { error: string }> {
     let cacheHit = true
 
+    let timeoutExceed = false
+    let cycleCount = 0
+
     do {
+      if (cycleCount > 500) timeoutExceed = true
+      cycleCount++
+
       if (!this.results.has(url)) {
         cacheHit = false
         this.globalCacheMiss++
@@ -257,11 +284,20 @@ class CachedFetch {
 
       if (this.isExpiredResult(result)) {
         this.purgeCacheForKey(url)
+        this.results.set(url, {
+          url: url,
+          failed: false,
+          data: undefined,
+          completedDate: undefined,
+          errorReason: undefined,
+          lastUsed: Date.now(),
+        })
         continue
       }
 
       if (this.isFailedResult(result)) {
         if (cacheHit) this.globalCacheHit++
+
         return {
           error:
             (`${result.errorReason}` || 'unknown') +
@@ -281,6 +317,7 @@ class CachedFetch {
             lastUsed: Date.now(),
           })
           if (cacheHit) this.globalCacheHit++
+
           return data as any
         } else {
           this.results.set(url, {
@@ -293,9 +330,14 @@ class CachedFetch {
           })
         }
       }
-    } while (await this.executeBatch())
+    } while (
+      (await this.executeBatch()) &&
+      !timeoutExceed &&
+      this.results.has(url)
+    )
 
-    return { error: 'unknown error' }
+    if (timeoutExceed) logger.warn(`timeout for ${url}`)
+    return { error: 'timeout' }
   }
 }
 

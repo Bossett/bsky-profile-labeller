@@ -26,7 +26,6 @@ export default async function firehoseWatcher() {
   let lag = 0
   let lastLag = 0
   let deltaLag = 0
-  let cycleCount = 0
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
 
@@ -39,12 +38,13 @@ export default async function firehoseWatcher() {
 
   const interval = async () => {
     let cycleInterval = interval_ms - (Date.now() % interval_ms)
+    let cycleCount = 0
     while (await wait(cycleInterval)) {
       const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
 
       cycleCount++
       deltaLag =
-        cycleCount <= 2
+        cycleCount <= 3
           ? 0
           : (deltaLag * (cycleCount - 1) + (lag - lastLag)) / cycleCount
 
@@ -57,15 +57,17 @@ export default async function firehoseWatcher() {
       const skippedItems = itemsSkipped
       const totalItems = itemsProcessed + itemsSkipped
 
-      if (deltaLag > 0) {
+      if (deltaLag < 0) {
         const timeToRealtime = lag / (deltaLag / cycleInterval)
-        if (timeToRealtime > cycleInterval && lastLag !== 0) {
+        if (lastLag !== 0) {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
         isSlowingDown = false
       } else {
-        timeToRealtimeStr = `not catching up`
-        isSlowingDown = true
+        if (cycleCount > 3) {
+          timeToRealtimeStr = `not catching up`
+          isSlowingDown = true
+        }
       }
 
       if (lag < 60000) {
@@ -129,7 +131,9 @@ export default async function firehoseWatcher() {
 
       if (speed < stalled_at && isSlowingDown) {
         logger.error(`firehose stalled at ${speed} ops/s`)
+
         willRestartOnUnpause = true
+        isSlowingDown = false
       }
 
       itemsSkipped = 0
@@ -148,10 +152,7 @@ export default async function firehoseWatcher() {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
-        maxPending: Math.max(
-          env.limits.MAX_CONCURRENT_PROCESSCOMMITS * 10,
-          25000,
-        ),
+        maxPending: 5000,
       })
 
       for await (const commit of firehose) {
@@ -163,14 +164,18 @@ export default async function firehoseWatcher() {
             ? (lag + (Date.now() - commitTime)) / 2
             : Date.now() - commitTime
 
-        if (willRestartOnUnpause) break
+        if (willRestartOnUnpause) {
+          throw new Error('FirehoseNotCatchingUp')
+        }
 
         if (await processCommit(commit)) itemsProcessed++
         else itemsSkipped++
+
+        seq = commit.meta['seq']
       }
     } catch (e) {
       logger.warn(`${e} in firehoseWatcher`)
-      if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
+      throw e
     }
   } while (await wait(10000))
 }

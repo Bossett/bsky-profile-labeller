@@ -6,7 +6,7 @@ import Denque from 'denque'
 import { Commit } from '@atproto/api/dist/client/types/com/atproto/sync/subscribeRepos.js'
 import { Subscription } from '@atproto/xrpc-server'
 
-import { parseCBORandCar } from './parseCBORandCar.js'
+import { parseCBORandCar } from '@/lib/firehoseIterable/parseCBORandCar.js'
 
 export default class FirehoseIterable {
   private commitQueue: Denque<Commit> = new Denque()
@@ -54,9 +54,17 @@ export default class FirehoseIterable {
   async readFirehose(sub: Subscription) {
     for await (const frame of sub) {
       // prevent memory leak by keeping queue to ~5000
-      while (this.commitQueue.size() > this.maxPending) {
-        await wait(1000)
-      }
+      // need to adjust to the best values to *just* keep the ws alive
+      const [maxWait, maxQueue, scaleFromPer] = [1500, this.maxPending, 0.8]
+      const scaleFrom = maxQueue * scaleFromPer
+      const waitTime = Math.floor(
+        Math.min(
+          Math.max(this.commitQueue.length - scaleFrom, 0) *
+            (maxWait / (maxQueue - scaleFrom)),
+          maxWait,
+        ),
+      )
+      if (waitTime > 100) await wait(waitTime)
 
       this.commitQueue.push(frame as Commit)
     }

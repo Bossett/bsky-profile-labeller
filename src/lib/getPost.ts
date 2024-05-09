@@ -7,7 +7,7 @@ import CachedFetch from '@/lib/CachedFetch.js'
 class PostFetch extends CachedFetch {
   protected async executeBatch() {
     if (this.batchExecuting) {
-      await wait(1)
+      await wait(10)
       return true
     }
 
@@ -44,7 +44,7 @@ class PostFetch extends CachedFetch {
 
     if (allPosts.length < maxRequestChunk && !retryExpired) {
       this.batchExecuting = false
-      await wait(1)
+      await wait(10)
       return true
     }
 

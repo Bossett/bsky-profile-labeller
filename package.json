@@ -40,8 +40,8 @@
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:update": "yarn db:generate && yarn db:migrate",
     "build": "tsc && tsc-alias",
-    "start": "node --expose-gc --max_old_space_size=1740 ./dist/app.js",
-    "dev": "tsx --env-file=.env --expose-gc --max_old_space_size=1740 src/app.ts",
+    "start": "node --expose-gc --max_old_space_size=1740 --optimize_for_size ./dist/app.js",
+    "dev": "tsx --env-file=.env --expose-gc --optimize_for_size --max_old_space_size=1740 src/app.ts",
     "validLimits": "tsx src/env/limits.ts"
   }
 }

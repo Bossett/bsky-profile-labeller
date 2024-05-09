@@ -65,47 +65,39 @@ export function validateCommit(commit: Commit): { seq?: number; did?: string } {
 
 export function _processCommit(commit: Commit): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    let failTimeout: NodeJS.Timeout = setTimeout(async () => {}, 1)
+    let failTimeout: NodeJS.Timeout | undefined = undefined
 
     try {
       const { seq, did } = validateCommit(commit)
       if (!(seq && did)) {
-        resolve()
+        clearTimeout(failTimeout)
+        reject()
         return
       }
 
-      const fail = () => {
-        reject(new Error(`ProcessCommitTimeout`))
-      }
-
-      failTimeout = setTimeout(async () => {
+      failTimeout = setTimeout(() => {
         logger.debug(`${seq}: took too long, failing...`)
-        fail()
+        reject(new Error(`ProcessCommitTimeout`))
       }, env.limits.MAX_PROCESSING_TIME_MS)
 
       const time: number = commit.meta['time']
         ? new Date(commit.meta['time']).getTime()
         : 0
 
-      const promCacheArr: Promise<any>[] = []
-
       if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
         if (purgePlcDirectoryCache(did, time)) {
           logger.debug(`got identity change, refreshing plc cache of ${did}`)
         }
-        promCacheArr.push(getPlcRecord(did))
       }
       if (commit.record['$type'] === 'app.bsky.actor.profile') {
         if (purgeDetailsCache(did, time)) {
           logger.debug(`got profile change, refreshing profile cache of ${did}`)
         }
-        promCacheArr.push(getUserDetails(did))
       }
       if (commit.record['$type'] === 'app.bsky.feed.post') {
         if (purgeAuthorFeedCache(did, time)) {
           logger.debug(`got post, refreshing feed cache of ${did}`)
         }
-        promCacheArr.push(getAuthorFeed(did))
       }
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
@@ -115,7 +107,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
 
         clearTimeout(failTimeout)
-        resolve()
+        reject()
         return
       }
 
@@ -141,7 +133,7 @@ export function _processCommit(commit: Commit): Promise<void> {
             logger.debug(`${seq}: invalid commit URL ${commit.atURL}`)
 
             clearTimeout(failTimeout)
-            resolve()
+            reject()
             return
           }
           const [, commit_did, commit_rkey] = match
@@ -151,6 +143,12 @@ export function _processCommit(commit: Commit): Promise<void> {
               did: commit_did,
               rkey: commit_rkey,
               watchedFrom: handleExpiryThreshold,
+            }).catch((e) => {
+              const op: OperationsResult = {
+                create: [],
+                remove: [],
+              }
+              return op
             }),
           )
           break
@@ -168,7 +166,15 @@ export function _processCommit(commit: Commit): Promise<void> {
           return
       }
 
-      promArray.push(getProfileLabel(profileData, currentLabels))
+      promArray.push(
+        getProfileLabel(profileData, currentLabels).catch((e) => {
+          const op: OperationsResult = {
+            create: [],
+            remove: [],
+          }
+          return op
+        }),
+      )
 
       promArray.push(
         getExpiringLabels({
@@ -176,10 +182,20 @@ export function _processCommit(commit: Commit): Promise<void> {
           labeller: agentDid,
           watchedFrom: handleExpiryThreshold,
           handlesToExpire: ['newhandle', 'newaccount'],
+        }).catch((e) => {
+          const op: OperationsResult = {
+            create: [],
+            remove: [],
+          }
+          return op
         }),
       )
 
-      const labelOperations = (await Promise.all(promArray)).reduce(
+      let opsResults: any[]
+
+      opsResults = await Promise.all(promArray)
+
+      const labelOperations = opsResults.reduce(
         (ops, op) => {
           ops.create = [...ops.create, ...op.create]
           ops.remove = [...ops.remove, ...op.remove]
@@ -256,6 +272,10 @@ export function _processCommit(commit: Commit): Promise<void> {
       ) {
         await insertOperations(operations)
       }
+
+      clearTimeout(failTimeout)
+      resolve()
+      return
     } catch (e) {
       clearTimeout(failTimeout)
       reject(e)
@@ -267,60 +287,65 @@ export function _processCommit(commit: Commit): Promise<void> {
 }
 
 const processQueue = new Denque<Commit>()
-const knownBadCommits = new Map<number, number>()
+
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
-const maxCommitRetries = 3
+const taskBuffer = maxActiveTasks * 2
 let runningCommits = new Set<number>()
+
+const knownBadCommits = new Set<number>()
 
 async function queueManager() {
   do {
-    while (!processQueue.isEmpty() && runningCommits.size <= maxActiveTasks) {
-      const commit = processQueue.shift()
+    while (!processQueue.isEmpty()) {
+      const commits = processQueue.splice(
+        0,
+        maxActiveTasks - runningCommits.size,
+      )
+      if (!commits || commits.length === 0) continue
 
-      if (!commit) continue
-      const seq = Number.parseInt(commit.meta['seq'])
-      if (runningCommits.has(seq)) continue
+      const commitsPromises: Promise<any>[] = []
+      for (const commit of commits) {
+        const seq = Number.parseInt(commit.meta['seq'])
+        if (runningCommits.has(seq)) continue
 
-      const thisNumRetries = knownBadCommits.get(seq) || 0
-      if (thisNumRetries >= maxCommitRetries) {
-        continue
+        runningCommits.add(seq)
+        commitsPromises.push(
+          _processCommit(commit)
+            .then(() => runningCommits.delete(seq))
+            .catch(() => runningCommits.delete(seq))
+            .finally(() => runningCommits.delete(seq)),
+        )
       }
 
-      runningCommits.add(seq)
-
-      _processCommit(commit)
-        .then(() => {
-          if (knownBadCommits.delete(seq))
-            logger.debug(`${seq} succeeded on retry`)
-        })
-        .catch(() => {
-          const retries = knownBadCommits.get(seq)
-
-          if (retries && retries >= maxCommitRetries) {
-            logger.warn(`${seq} failed to process after ${retries} retries`)
-            knownBadCommits.delete(seq)
-          } else {
-            if (!retries) knownBadCommits.set(seq, 1)
-            else knownBadCommits.set(seq, retries + 1)
-            processQueue.unshift(commit)
-          }
-        })
-        .finally(() => runningCommits.delete(seq))
+      await Promise.allSettled(commitsPromises)
+      commitsPromises.length = 0
     }
     knownBadCommits.clear()
-  } while (await wait(1))
+    runningCommits.clear()
+  } while (await wait(10))
 }
-queueManager()
 
 export async function processCommit(commit: Commit): Promise<boolean> {
   const isValidCommit = validateCommit(commit)
   if (!(isValidCommit.did && isValidCommit.seq)) return false
+  if (knownBadCommits.has(isValidCommit.seq)) return false
 
-  while (processQueue.size() >= env.limits.PROCESS_QUEUE_BUFFER) {
-    await wait(1)
+  while (processQueue.length >= taskBuffer) {
+    await wait(10)
   }
 
   processQueue.push(commit)
 
   return isValidCommit.did ? true : false
 }
+
+export function resetQueue() {
+  const count = processQueue.size()
+
+  processQueue.clear()
+  knownBadCommits.clear()
+  runningCommits.clear()
+  return count
+}
+
+queueManager()
