@@ -7,6 +7,7 @@ import { pdsLimit } from '@/env/rateLimit.js'
 
 export default async function emitAccountReport(
   eventInput: ToolsOzoneModerationEmitEvent.InputSchema,
+  isRetry = false,
 ): Promise<boolean> {
   if (env.DANGEROUSLY_EXPOSE_SECRETS) {
     logger.debug(
@@ -17,8 +18,6 @@ export default async function emitAccountReport(
     return true
   }
 
-  let hasRetried = false
-
   try {
     await pdsLimit(() =>
       agent
@@ -26,14 +25,17 @@ export default async function emitAccountReport(
         .api.tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {
+    if (e.message === 'queue maxDelay timeout exceeded') return false
     logger.warn(`${e} from emitAccountReport attempting re-auth`)
-    if (hasRetried) return false
-    if (!hasRetried) hasRetried = true
+    if (isRetry) return false
+
     try {
       await reauth(agent)
     } catch (e) {
       throw e
     }
+
+    if (!isRetry) return emitAccountReport(eventInput, true)
     return false
   }
   return true
