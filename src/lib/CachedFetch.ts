@@ -376,22 +376,33 @@ class CachedFetch {
     } while (
       (await this._executeBatch()) &&
       !timeoutExceed &&
-      this.results.has(url)
+      this.results.has(url) &&
+      this.getPromiseMap.has(url)
     )
 
+    if (!this.getPromiseMap.has(url)) {
+      const result = this.results.get(url)
+      if (!result?.completedDate || result?.lastUsed === 0)
+        this.results.delete(url)
+      return { error: 'no pending promise' }
+    }
+
     if (timeoutExceed) {
+      if (
+        this.timeoutFailures >
+        20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)
+      ) {
+        logger.warn(
+          `${this.timeoutFailures} timeout events (this fetching ${url})`,
+        )
+        this.timeoutFailures = 0
+      }
       logger.debug(`timeout for ${url}`)
       this.timeoutFailures++
+      return { error: 'timeout' }
     }
 
-    if (this.timeoutFailures > 20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)) {
-      logger.warn(
-        `${this.timeoutFailures} timeout events (this fetching ${url})`,
-      )
-      this.timeoutFailures = 0
-    }
-
-    return { error: 'timeout' }
+    return { error: 'unknown error' }
   }
 
   private getPromiseMap = new Map<string, Promise<any>>()
