@@ -247,10 +247,9 @@ class CachedFetch {
               if (e.message !== 'fetch failed') {
                 this.results.set(query, {
                   url: query,
-                  failed: true,
+                  failed: false,
                   data: undefined,
-                  completedDate: Date.now(),
-                  errorReason: e.message,
+                  completedDate: undefined,
                   lastUsed: Date.now(),
                 })
               } else {

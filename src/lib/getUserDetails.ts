@@ -67,11 +67,10 @@ class UserDetailsFetch extends CachedFetch {
                 actors.splice(idxToRemove, 1)
                 this.results.set(did, {
                   data: undefined,
-                  completedDate: 0,
+                  completedDate: undefined,
                   url: did,
-                  failed: true,
+                  failed: false,
                   lastUsed: Date.now(),
-                  errorReason: e.message,
                 })
               }
             }),

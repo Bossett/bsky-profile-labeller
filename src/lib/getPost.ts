@@ -57,8 +57,8 @@ class PostFetch extends CachedFetch {
         const postsChunk = postURLs.slice(i, i + maxRequestChunk)
         resPromises.push(
           getPosts(postsChunk)
-            .then((posts: { data: { posts: AppBskyFeedDefs.PostView[] } }) => {
-              const postsMap = posts.data.posts.reduce(
+            .then((posts: { posts: AppBskyFeedDefs.PostView[] }) => {
+              const postsMap = posts.posts.reduce(
                 (map, post) => ({ ...map, [post.uri]: post }),
                 {},
               )
@@ -82,11 +82,10 @@ class PostFetch extends CachedFetch {
 
                 this.results.set(url, {
                   data: undefined,
-                  completedDate: 0,
+                  completedDate: undefined,
                   url: url,
-                  failed: true,
+                  failed: false,
                   lastUsed: Date.now(),
-                  errorReason: e.message,
                 })
               }
             }),
