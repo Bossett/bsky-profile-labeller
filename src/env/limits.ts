@@ -2,31 +2,27 @@ const limits = {
   // ***** RATE LIMITERS *****
   // the rate limiter for agent login attempts
   AUTH_LIMIT_MAX_CONCURRENT: 10,
-  AUTH_LIMIT_MAX_DELAY_MS: 3 * 1000,
+  AUTH_LIMIT_MAX_DELAY_MS: 3000,
   AUTH_LIMIT_MAX_RATE: 20,
   AUTH_LIMIT_RATE_INTERVAL_MS: 300 * 1000,
-
   // rate limiter for authed request
-  PDS_LIMIT_MAX_CONCURRENT: 64,
-  PDS_LIMIT_MAX_DELAY_MS: 1000,
+  PDS_LIMIT_MAX_CONCURRENT: 128,
+  PDS_LIMIT_MAX_DELAY_MS: 3000,
   PDS_LIMIT_MAX_RATE: 2_500,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
-
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 1024,
-  PLC_LIMIT_MAX_DELAY_MS: 100,
-  PLC_LIMIT_MAX_RATE: 250_000,
-  PLC_LIMIT_RATE_INTERVAL_MS: 1000,
-
+  PLC_LIMIT_MAX_CONCURRENT: 512,
+  PLC_LIMIT_MAX_DELAY_MS: undefined,
+  PLC_LIMIT_MAX_RATE: undefined,
+  PLC_LIMIT_RATE_INTERVAL_MS: undefined,
   // rate limit for public API
   PUBLIC_LIMIT_MAX_CONCURRENT: 96,
-  PUBLIC_LIMIT_MAX_DELAY_MS: 2000,
-  PUBLIC_LIMIT_MAX_RATE: 250_000,
-  PUBLIC_LIMIT_RATE_INTERVAL_MS: 1000,
+  PUBLIC_LIMIT_MAX_DELAY_MS: undefined,
+  PUBLIC_LIMIT_MAX_RATE: undefined,
+  PUBLIC_LIMIT_RATE_INTERVAL_MS: undefined,
 
   MAX_RETRIES: 1, // retries for HTTP calls and attempts to process commits
   MAX_WAIT_RETRY_MS: 1000, // some HTTP calls are retried, this sets the max wait between retries
-
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 30, // sets the limit parameter requesting an author's posts - 30 is what bsky.app uses so the cache should be fresher
   DB_WRITE_INTERVAL_MS: 5 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
@@ -35,8 +31,7 @@ const limits = {
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 100, // the maximum number of label pending events before writing to the db
-  MAX_PROCESSING_TIME_MS: 20 * 1000, // the maximum time any given commit can take to process
-
+  MAX_PROCESSING_TIME_MS: 15 * 1000, // the maximum time any given commit can take to process
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 60 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
   USER_DETAILS_MAX_SIZE: 10000,
@@ -47,7 +42,7 @@ const limits = {
   POST_CACHE_MAX_AGE_MS: 24 * 60 * 60 * 1000,
   POST_CACHE_MAX_SIZE: 5000,
   MAX_BATCH_WAIT_TIME_MS: 100,
-  BATCH_CYCLE_TIMEOUT_MS: 20000,
+  BATCH_CYCLE_TIMEOUT_MS: 6000,
 }
 
 const validateLimits = {

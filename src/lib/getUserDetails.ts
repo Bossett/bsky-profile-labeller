@@ -41,39 +41,36 @@ class UserDetailsFetch extends CachedFetch {
 
       for (let i = 0; i < actors.length; i += maxRequestChunk) {
         const actorsChunk = actors.slice(i, i + maxRequestChunk)
-        resPromises.push(getProfiles(actorsChunk))
+        resPromises.push(
+          getProfiles(actorsChunk)
+            .then((profiles) => {
+              const profilesMap = profiles.data.profiles.reduce(
+                (map, profile) => ({ ...map, [profile.did]: profile }),
+                {},
+              )
+              for (const did of actorsChunk) {
+                if (profilesMap[did]) {
+                  this.results.set(did, {
+                    data: profilesMap[did],
+                    completedDate: Date.now(),
+                    url: did,
+                    failed: false,
+                    lastUsed: Date.now(),
+                  })
+                  foundActors.add(did)
+                }
+              }
+            })
+            .catch((e) => {
+              for (const did of actorsChunk) {
+                const idxToRemove = actors.indexOf(did)
+                actors.splice(idxToRemove, 1)
+              }
+            }),
+        )
       }
 
-      const promiseResults = (await Promise.allSettled(resPromises)).flatMap(
-        (item) => (item.status === 'fulfilled' ? [item.value] : []),
-      )
-
-      const profileResults = promiseResults.reduce(
-        (acc, item) => ({
-          data: {
-            profiles: [...acc.data.profiles, ...item.data.profiles],
-          },
-        }),
-        { data: { profiles: [] } },
-      )
-
-      const profiles = profileResults.data.profiles.reduce(
-        (map, profile) => ({ ...map, [profile.did]: profile }),
-        {},
-      )
-
-      for (const did of actors) {
-        if (profiles[did]) {
-          this.results.set(did, {
-            data: profiles[did],
-            completedDate: Date.now(),
-            url: did,
-            failed: false,
-            lastUsed: Date.now(),
-          })
-          foundActors.add(did)
-        }
-      }
+      await Promise.allSettled(resPromises)
     } catch (e) {
       return true
     }

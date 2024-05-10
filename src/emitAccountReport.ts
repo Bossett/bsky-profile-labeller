@@ -39,7 +39,6 @@ export default async function emitAccountReport(
       throw e
     }
 
-    if (!isRetry) return emitAccountReport(eventInput, true)
     return false
   }
   return true

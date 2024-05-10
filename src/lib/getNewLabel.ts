@@ -145,7 +145,6 @@ export async function getNewLabel({
           }
         } catch (e) {
           logger.debug(`${e.message} fetching post ${post}`)
-          if (`${e.message}` === 'fetch failed') throw e
         }
       }
 

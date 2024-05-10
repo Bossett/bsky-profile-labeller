@@ -7,7 +7,7 @@ import { agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 
 import db, { schema, lte, inArray } from '@/db/db.js'
-import { purgeCacheForDid } from './lib/getUserDetails.js'
+import getUserDetails, { purgeCacheForDid } from './lib/getUserDetails.js'
 
 export default async function labelEmitter() {
   do {

@@ -21,8 +21,6 @@ export default async function firehoseWatcher() {
       })
     )?.last_sequence || 0
 
-  let old_seq: number = seq
-
   let lag = 0
   let lastLag = 0
   let deltaLag = 0
@@ -37,7 +35,9 @@ export default async function firehoseWatcher() {
   let itemsSkipped = 0
 
   const interval = async () => {
-    let cycleInterval = interval_ms - (Date.now() % interval_ms)
+    let cycleInterval = env.DANGEROUSLY_EXPOSE_SECRETS
+      ? 30000
+      : interval_ms - (Date.now() % interval_ms)
     let cycleCount = 0
     while (await wait(cycleInterval)) {
       const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
@@ -111,7 +111,6 @@ export default async function firehoseWatcher() {
       plcCacheStats.reset()
       postCacheStats.reset()
 
-      old_seq = seq
       await db
         .insert(schema.subscription_status)
         .values({
@@ -135,7 +134,9 @@ export default async function firehoseWatcher() {
       itemsSkipped = 0
       itemsProcessed = 0
 
-      cycleInterval = interval_ms - (Date.now() % interval_ms)
+      cycleInterval = env.DANGEROUSLY_EXPOSE_SECRETS
+        ? 30000
+        : interval_ms - (Date.now() % interval_ms)
     }
   }
 

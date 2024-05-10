@@ -232,6 +232,7 @@ class CachedFetch {
 
           getUrl(query)
             .then((data) => {
+              this.currentRunningQueries.delete(query)
               this.results.set(query, {
                 url: query,
                 failed: false,
@@ -240,13 +241,10 @@ class CachedFetch {
                 errorReason: undefined,
                 lastUsed: Date.now(),
               })
-              this.currentRunningQueries.delete(query)
             })
             .catch((e) => {
-              if (
-                e.message !== 'fetch failed' &&
-                e.message !== 'queue maxDelay timeout exceeded'
-              ) {
+              this.currentRunningQueries.delete(query)
+              if (e.message !== 'fetch failed') {
                 this.results.set(query, {
                   url: query,
                   failed: true,
@@ -255,8 +253,6 @@ class CachedFetch {
                   errorReason: e.message,
                   lastUsed: Date.now(),
                 })
-
-                this.currentRunningQueries.delete(query)
               }
             })
             .finally(() => {
@@ -404,7 +400,6 @@ class CachedFetch {
         })
         .catch((e) => {
           this.getPromiseMap.delete(url)
-          throw e
         })
       this.getPromiseMap.set(url, newPromise)
       return newPromise

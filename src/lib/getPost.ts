@@ -53,45 +53,39 @@ class PostFetch extends CachedFetch {
     const foundPosts = new Set<string>()
 
     try {
-      const resPromises: Promise<any>[] = []
-
       for (let i = 0; i < postURLs.length; i += maxRequestChunk) {
+        const resPromises: Promise<any>[] = []
         const postsChunk = postURLs.slice(i, i + maxRequestChunk)
-        resPromises.push(getPosts(postsChunk))
-      }
-
-      const promiseResults = (await Promise.allSettled(resPromises)).flatMap(
-        (item) => (item.status === 'fulfilled' ? [item.value] : []),
-      )
-
-      const postResults = promiseResults.reduce(
-        (acc, item) => ({
-          data: {
-            posts: [...acc.posts, ...item.posts],
-          },
-        }),
-        { posts: [] },
-      )
-
-      const posts = postResults.data.posts.reduce(
-        (map, post) => ({ ...map, [post.uri]: post }),
-        {},
-      )
-
-      for (const url of postURLs) {
-        if (posts[url]) {
-          this.results.set(url, {
-            data: posts[url],
-            completedDate: Date.now(),
-            url: url,
-            failed: false,
-            lastUsed: Date.now(),
-          })
-          foundPosts.add(url)
-        }
+        resPromises.push(
+          getPosts(postsChunk)
+            .then((posts: { data: { posts: AppBskyFeedDefs.PostView[] } }) => {
+              const postsMap = posts.data.posts.reduce(
+                (map, post) => ({ ...map, [post.uri]: post }),
+                {},
+              )
+              for (const url of postsChunk) {
+                if (postsMap[url]) {
+                  this.results.set(url, {
+                    data: postsMap[url],
+                    completedDate: Date.now(),
+                    url: url,
+                    failed: false,
+                    lastUsed: Date.now(),
+                  })
+                  foundPosts.add(url)
+                }
+              }
+            })
+            .catch((e) => {
+              for (const url of postsChunk) {
+                const idxToRemove = postURLs.indexOf(url)
+                postURLs.splice(idxToRemove, 1)
+              }
+            }),
+        )
+        await Promise.allSettled(resPromises)
       }
     } catch (e) {
-      if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
       return true
     }
 
