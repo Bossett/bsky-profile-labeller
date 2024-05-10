@@ -151,7 +151,8 @@ export async function getNewLabel({
 
       const isPotentialRapidPoster =
         stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
-        postIntervals.length === limit - 1
+        postIntervals.length === limit - 1 &&
+        !hasSeenReply
 
       if (!isPotentialRapidPoster && hasSeenTopLevel) {
         removeLabels.add('onlyreplies')
@@ -166,7 +167,6 @@ export async function getNewLabel({
         const topOnlyAuthorFeed = topOnlyAuthorResult.feed
 
         if (topOnlyAuthorFeed.length === 0 && hasSeenReply) {
-          console.log(topOnlyAuthorFeed)
           createLabels.add('onlyreplies')
         } else removeLabels.add('onlyreplies')
 

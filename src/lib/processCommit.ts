@@ -222,13 +222,12 @@ export function _processCommit(commit: Commit): Promise<void> {
       const handlesToReapply = ['newhandle']
 
       labelOperations.create = labelOperations.create.filter((label) => {
-        if (!currentLabels.map((curr) => curr.val).includes(label)) {
-          // only create labels that are not already on the account
-          // UNLESS they are in handlesToReapply
-          return false
+        if (currentLabels.map((curr) => curr.val).includes(label)) {
+          // If the label is already on the account, only keep it if it's in handlesToReapply
+          return handlesToReapply.includes(label)
         } else {
-          if (handlesToReapply.includes(label)) return true
-          return false
+          // If the label is not on the account, keep it
+          return true
         }
       })
 
