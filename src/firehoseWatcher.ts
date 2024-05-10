@@ -26,6 +26,7 @@ export default async function firehoseWatcher() {
   let deltaLag = 0
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
+  let seenFirstCommit = false
 
   const firstRun = Date.now()
 
@@ -35,6 +36,11 @@ export default async function firehoseWatcher() {
   let itemsSkipped = 0
 
   const interval = async () => {
+    logger.info(`waiting for first commit...`)
+    do {
+      await wait(10)
+    } while (!seenFirstCommit)
+
     let cycleInterval = env.DANGEROUSLY_EXPOSE_SECRETS
       ? 30000
       : interval_ms - (Date.now() % interval_ms)
@@ -154,6 +160,7 @@ export default async function firehoseWatcher() {
 
       for await (const commit of firehose) {
         if (!Number.isSafeInteger(commit.meta['seq'])) continue
+        seenFirstCommit = true
 
         const commitTime = new Date(commit.meta['time']).getTime()
         lag =
@@ -174,5 +181,7 @@ export default async function firehoseWatcher() {
       logger.warn(`${e} in firehoseWatcher`)
       throw e
     }
+
+    seenFirstCommit = false
   } while (await wait(10000))
 }
