@@ -258,7 +258,7 @@ class CachedFetch {
                   url: query,
                   failed: true,
                   data: undefined,
-                  completedDate: 2 * 60 * 1000 + (Date.now() - this.maxAge),
+                  completedDate: 0,
                   errorReason: e.message,
                   lastUsed: Date.now(),
                 })

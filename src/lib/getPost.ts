@@ -82,10 +82,11 @@ class PostFetch extends CachedFetch {
 
                 this.results.set(url, {
                   data: undefined,
-                  completedDate: 2 * 60 * 1000 + (Date.now() - this.maxAge),
+                  completedDate: 0,
                   url: url,
                   failed: true,
                   lastUsed: Date.now(),
+                  errorReason: e.message,
                 })
               }
             }),
