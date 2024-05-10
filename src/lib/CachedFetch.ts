@@ -253,6 +253,15 @@ class CachedFetch {
                   errorReason: e.message,
                   lastUsed: Date.now(),
                 })
+              } else {
+                this.results.set(query, {
+                  url: query,
+                  failed: true,
+                  data: undefined,
+                  completedDate: 2 * 60 * 1000 + (Date.now() - this.maxAge),
+                  errorReason: e.message,
+                  lastUsed: Date.now(),
+                })
               }
             })
             .finally(() => {

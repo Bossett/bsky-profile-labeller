@@ -65,6 +65,13 @@ class UserDetailsFetch extends CachedFetch {
               for (const did of actorsChunk) {
                 const idxToRemove = actors.indexOf(did)
                 actors.splice(idxToRemove, 1)
+                this.results.set(did, {
+                  data: undefined,
+                  completedDate: 2 * 60 * 1000 + (Date.now() - this.maxAge),
+                  url: did,
+                  failed: true,
+                  lastUsed: Date.now(),
+                })
               }
             }),
         )

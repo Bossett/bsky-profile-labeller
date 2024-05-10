@@ -1,7 +1,6 @@
 import { AppBskyFeedDefs } from '@atproto/api'
 import { publicLimit } from '@/env/rateLimit.js'
 import env from '@/env/env.js'
-import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 
 class PostFetch extends CachedFetch {
@@ -80,6 +79,14 @@ class PostFetch extends CachedFetch {
               for (const url of postsChunk) {
                 const idxToRemove = postURLs.indexOf(url)
                 postURLs.splice(idxToRemove, 1)
+
+                this.results.set(url, {
+                  data: undefined,
+                  completedDate: 2 * 60 * 1000 + (Date.now() - this.maxAge),
+                  url: url,
+                  failed: true,
+                  lastUsed: Date.now(),
+                })
               }
             }),
         )
