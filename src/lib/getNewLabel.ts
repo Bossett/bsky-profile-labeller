@@ -6,7 +6,9 @@ import getPost from '@/lib/getPost.js'
 import env from '@/env/env.js'
 import logger from '@/helpers/logger.js'
 
-import getAuthorFeed from '@/lib/getAuthorFeed.js'
+import getAuthorFeed, {
+  purgeCacheForDid as purgeAuthorFeedCache,
+} from '@/lib/getAuthorFeed.js'
 import getPlcRecord from '@/lib/getPlcRecord.js'
 
 interface Params {
@@ -139,6 +141,7 @@ export async function getNewLabel({
             if (thisPost) {
               if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
                 createLabels.add('newhandle')
+              purgeAuthorFeedCache(did)
             }
           } else {
             logger.debug(`error finding ${post}: ${postData.error}`)

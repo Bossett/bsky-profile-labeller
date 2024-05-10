@@ -94,11 +94,6 @@ export function _processCommit(commit: Commit): Promise<void> {
           logger.debug(`got profile change, refreshing profile cache of ${did}`)
         }
       }
-      if (commit.record['$type'] === 'app.bsky.feed.post') {
-        if (purgeAuthorFeedCache(did, time)) {
-          logger.debug(`got post, refreshing feed cache of ${did}`)
-        }
-      }
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
         await getUserDetails(did)

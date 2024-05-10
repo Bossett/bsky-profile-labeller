@@ -29,7 +29,7 @@ const limits = {
   MAX_CONCURRENT_PROCESSCOMMITS: 128, // this influences # of http requests, so lower can be faster
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
-  MAX_PENDING_INSERTS_WAIT_MS: 2 * 60 * 1000, // the maximum amount of time between inserting pending label events
+  MAX_PENDING_INSERTS_WAIT_MS: 30 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 64, // the maximum number of label pending events before writing to the db
   MAX_PROCESSING_TIME_MS: 15 * 1000, // the maximum time any given commit can take to process
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
