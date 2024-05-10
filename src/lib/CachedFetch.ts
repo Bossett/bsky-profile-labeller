@@ -243,7 +243,10 @@ class CachedFetch {
               this.currentRunningQueries.delete(query)
             })
             .catch((e) => {
-              if (e.message !== 'fetch failed') {
+              if (
+                e.message !== 'fetch failed' &&
+                e.message !== 'queue maxDelay timeout exceeded'
+              ) {
                 this.results.set(query, {
                   url: query,
                   failed: true,
