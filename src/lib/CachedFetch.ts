@@ -382,8 +382,10 @@ class CachedFetch {
 
     if (!this.getPromiseMap.has(url)) {
       const result = this.results.get(url)
-      if (!result?.completedDate || result?.lastUsed === 0)
+      if (!result?.completedDate || result?.lastUsed === 0) {
+        this.globalCacheExpired++
         this.results.delete(url)
+      }
       return { error: 'no pending promise' }
     }
 
