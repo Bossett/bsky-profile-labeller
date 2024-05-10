@@ -45,7 +45,7 @@ export async function insertOperations(
     )
   }
 
-  if (pendingOperations.length <= MAX_PENDING && !force) return
+  if (pendingOperations.length < MAX_PENDING && !force) return
 
   clearTimeout(insertTimeout!)
   insertTimeout = null

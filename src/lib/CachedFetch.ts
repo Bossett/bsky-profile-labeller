@@ -107,7 +107,7 @@ class CachedFetch {
       entries.length = 0 // explicitly remove
     }
 
-    logger.debug(`final size ${this.results.size}`)
+    logger.debug(`cache ${initialSize} -> ${this.results.size}`)
 
     return initialSize - this.results.size
   }
