@@ -27,7 +27,7 @@ export default async function emitAccountReport(
   } catch (e) {
     if (
       e.message === 'queue maxDelay timeout exceeded' ||
-      e.message === 'fetch failed'
+      e.message === 'Error: TypeError: fetch failed'
     )
       return false
     logger.warn(`${e} from emitAccountReport attempting re-auth`)
