@@ -25,7 +25,11 @@ export default async function emitAccountReport(
         .api.tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {
-    if (e.message === 'queue maxDelay timeout exceeded') return false
+    if (
+      e.message === 'queue maxDelay timeout exceeded' ||
+      e.message === 'fetch failed'
+    )
+      return false
     logger.warn(`${e} from emitAccountReport attempting re-auth`)
     if (isRetry) return false
 
