@@ -20,6 +20,10 @@
 				"esbenp.prettier-vscode"
 			]
 		}
+	},
+	"remoteEnv": {
+		"FLYCTL_INSTALL": "/home/node/.fly",
+		"PATH": "${containerEnv:PATH}:/home/node/.fly/bin"
 	}
 	// Configure tool-specific properties.
 	// "customizations": {},
