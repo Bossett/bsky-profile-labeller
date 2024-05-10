@@ -114,7 +114,7 @@ export default async function labelEmitter() {
       eventPromises.push(fn())
     }
 
-    await Promise.all(eventPromises)
+    await Promise.allSettled(eventPromises)
 
     logger.debug(
       `grouped events: ${totalEvents} events into ${

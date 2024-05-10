@@ -60,7 +60,11 @@ class PostFetch extends CachedFetch {
         resPromises.push(getPosts(postsChunk))
       }
 
-      const postResults = (await Promise.all(resPromises)).reduce(
+      const promiseResults = (await Promise.allSettled(resPromises)).flatMap(
+        (item) => (item.status === 'fulfilled' ? [item.value] : []),
+      )
+
+      const postResults = promiseResults.reduce(
         (acc, item) => ({
           data: {
             posts: [...acc.posts, ...item.posts],

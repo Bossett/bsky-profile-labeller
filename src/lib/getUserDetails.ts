@@ -44,7 +44,11 @@ class UserDetailsFetch extends CachedFetch {
         resPromises.push(getProfiles(actorsChunk))
       }
 
-      const profileResults = (await Promise.all(resPromises)).reduce(
+      const promiseResults = (await Promise.allSettled(resPromises)).flatMap(
+        (item) => (item.status === 'fulfilled' ? [item.value] : []),
+      )
+
+      const profileResults = promiseResults.reduce(
         (acc, item) => ({
           data: {
             profiles: [...acc.data.profiles, ...item.data.profiles],

@@ -193,7 +193,9 @@ export function _processCommit(commit: Commit): Promise<void> {
 
       let opsResults: any[]
 
-      opsResults = await Promise.all(promArray)
+      opsResults = (await Promise.allSettled(promArray)).flatMap((item) =>
+        item.status === 'fulfilled' ? [item.value] : [],
+      )
 
       const labelOperations = opsResults.reduce(
         (ops, op) => {
