@@ -12,6 +12,7 @@ type pendingResults = {
   errorReason?: string
   failed: boolean
   lastUsed: number
+  timesUsed?: number
 }
 
 class CachedFetch {
@@ -20,9 +21,7 @@ class CachedFetch {
   protected maxAge: number = 3000
   protected maxBatch: number = 25
 
-  private cycleWait: number = env.limits.BATCH_CYCLE_WAIT_MS || 10
   private cycleTimeout: number = env.limits.BATCH_CYCLE_TIMEOUT_MS || 3000
-
   private timeoutFailures: number = 0
 
   protected limiter:
@@ -76,39 +75,55 @@ class CachedFetch {
   }
 
   private trackLimit() {
-    if (this.results.size < this.maxSize * 2) return 0
+    if (this.results.size <= this.maxSize) return 0
+
+    const targetFree = 0.25
+    const targetSize = Math.floor((1 - targetFree) * this.maxSize)
 
     const initialSize = this.results.size
-    const resultsArray = Array.from(this.results.entries()).filter((item) => {
-      if (item[1].failed) return false
-      if (this.isExpiredResult(item[1])) return false
-      return true
-    })
 
-    const pendingResults = resultsArray.filter((item) => !item[1].completedDate)
+    for (const [key, result] of this.results) {
+      if (this.isExpiredResult(result)) {
+        this.results.delete(key)
+      }
+    }
 
-    if (pendingResults.length < this.maxSize) {
-      resultsArray.sort((a, b) => {
-        const dateA = a[1].lastUsed
-        const dateB = b[1].lastUsed
+    const getAdjustedDate = (result: pendingResults) => {
+      const now = Date.now()
+      if (!result.completedDate) return now + 1000
+      if (this.getPromiseMap.has(result.url)) return now + 1000
+      if (result.timesUsed) return result.lastUsed + result.timesUsed * 30000
+      return result.lastUsed
+    }
+
+    if (this.results.size > targetSize) {
+      const entries = Array.from(this.results.entries())
+      entries.sort((a, b) => {
+        const dateA = getAdjustedDate(a[1])
+        const dateB = getAdjustedDate(b[1])
         return dateB - dateA
       })
+      this.results = new Map(entries.slice(0, targetSize))
+      entries.length = 0 // explicitly remove
     }
-    const sliceAt = Math.max(this.maxSize - pendingResults.length, 0)
-    const topResults = [
-      ...pendingResults.slice(0, this.maxSize),
-      ...resultsArray.slice(0, sliceAt),
-    ]
-
-    this.results = new Map(topResults)
 
     logger.debug(`final size ${this.results.size}`)
 
     return initialSize - this.results.size
   }
 
-  protected isExpiredResult(result: pendingResults) {
-    if (result.completedDate === undefined) return false
+  private isExpiredResult(result: pendingResults) {
+    if (result.completedDate === undefined) {
+      if (
+        result.lastUsed <
+        Date.now() -
+          (this.maxAge +
+            Math.floor(this.maxAge * this.seededRandom(result.lastUsed)))
+      ) {
+        return true
+      }
+      return false
+    }
 
     if (
       result.completedDate <
@@ -125,9 +140,9 @@ class CachedFetch {
     return result.failed
   }
 
-  protected globalCacheHit = 0
-  protected globalCacheMiss = 0
-  protected globalCacheExpired = 0
+  private globalCacheHit = 0
+  private globalCacheMiss = 0
+  private globalCacheExpired = 0
 
   public cacheStatistics() {
     const hitRate = () =>
@@ -148,14 +163,16 @@ class CachedFetch {
     }
   }
 
-  public scavengeExpired() {
-    this.globalCacheExpired += this.trackLimit()
-    if (this.globalCacheExpired > 0) return
+  private scavengeExpired() {
+    const aboveCap = this.trackLimit()
+    this.globalCacheExpired += aboveCap
 
-    for (const [url, result] of this.results) {
-      if (this.isExpiredResult(result)) {
-        this.results.delete(url)
-        this.globalCacheExpired++
+    if (aboveCap === 0) {
+      for (const [url, result] of this.results) {
+        if (this.isExpiredResult(result)) {
+          this.results.delete(url)
+          this.globalCacheExpired++
+        }
       }
     }
   }
@@ -181,7 +198,6 @@ class CachedFetch {
     }
   }
 
-  protected batchExecuting: boolean = false
   protected lastBatchRun: number = Date.now()
   protected currentRunningQueries = new Set<string>()
 
@@ -227,15 +243,18 @@ class CachedFetch {
               this.currentRunningQueries.delete(query)
             })
             .catch((e) => {
-              this.results.set(query, {
-                url: query,
-                failed: true,
-                data: undefined,
-                completedDate: Date.now(),
-                errorReason: e.message,
-                lastUsed: Date.now(),
-              })
-              this.currentRunningQueries.delete(query)
+              if (e.message !== 'fetch failed') {
+                this.results.set(query, {
+                  url: query,
+                  failed: true,
+                  data: undefined,
+                  completedDate: Date.now(),
+                  errorReason: e.message,
+                  lastUsed: Date.now(),
+                })
+
+                this.currentRunningQueries.delete(query)
+              }
             })
             .finally(() => {
               this.currentRunningQueries.delete(query)
@@ -243,12 +262,12 @@ class CachedFetch {
         }
       } else break
       while (this.currentRunningQueries.size >= this.maxBatch) {
-        await wait(this.cycleWait)
+        await wait(10)
       }
     }
 
     while (this.currentRunningQueries.size > 0) {
-      await wait(this.cycleWait)
+      await wait(10)
     }
 
     this.lastBatchRun = Date.now()
@@ -259,26 +278,27 @@ class CachedFetch {
   private async _executeBatch() {
     let res: boolean = true
     if (!(await this.acquireLock())) {
-      await wait(this.cycleWait)
+      await wait(10)
       return res
     }
+    this.globalCacheExpired += this.trackLimit()
     try {
       res = await this.executeBatch()
     } finally {
       this.releaseLock()
     }
+    this.lastBatchRun = Date.now()
     return res
   }
 
-  public async getJson(url: string): Promise<any | { error: string }> {
+  private async _getJson(url: string): Promise<any | { error: string }> {
     let cacheHit = true
 
     let timeoutExceed = false
-    let cycleCount = 0
+    const launchTime = Date.now()
 
     do {
-      if (cycleCount > this.cycleTimeout / this.cycleWait) timeoutExceed = true
-      cycleCount++
+      if (Date.now() > launchTime + this.cycleTimeout) timeoutExceed = true
 
       if (!this.results.has(url)) {
         cacheHit = false
@@ -330,6 +350,7 @@ class CachedFetch {
             completedDate: result.completedDate,
             errorReason: undefined,
             lastUsed: Date.now(),
+            timesUsed: result.timesUsed ? result.timesUsed + 1 : 1,
           })
           if (cacheHit) this.globalCacheHit++
 
@@ -357,11 +378,34 @@ class CachedFetch {
     }
 
     if (this.timeoutFailures > 20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)) {
-      logger.warn(`${this.timeoutFailures} (this fetching ${url})`)
+      logger.warn(
+        `${this.timeoutFailures} timeout events (this fetching ${url})`,
+      )
       this.timeoutFailures = 0
     }
 
     return { error: 'timeout' }
+  }
+
+  private getPromiseMap = new Map<string, Promise<any>>()
+
+  public async getJson(url: string) {
+    const existingPromise = this.getPromiseMap.get(url)
+    if (existingPromise) {
+      return existingPromise
+    } else {
+      const newPromise = this._getJson(url)
+        .then((result) => {
+          this.getPromiseMap.delete(url)
+          return result
+        })
+        .catch((e) => {
+          this.getPromiseMap.delete(url)
+          throw e
+        })
+      this.getPromiseMap.set(url, newPromise)
+      return newPromise
+    }
   }
 }
 

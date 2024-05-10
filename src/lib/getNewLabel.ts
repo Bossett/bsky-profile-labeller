@@ -15,6 +15,15 @@ interface Params {
   watchedFrom: number
 }
 
+const stDev = (numArr: number[]) => {
+  if (numArr.length === 0) return Infinity
+  const n = numArr.length
+  const mean = numArr.reduce((a, b) => a + b) / n
+  const deviations = numArr.map((x) => Math.pow(x - mean, 2))
+  const variance = deviations.reduce((a, b) => a + b) / n
+  return Math.sqrt(variance)
+}
+
 export async function getNewLabel({
   did,
   rkey,
@@ -84,12 +93,16 @@ export async function getNewLabel({
       let postAfterChange = false
       let postFound = false
       let postIntervals: number[] = []
+      let hasSeenTopLevel = false
+      let hasSeenReply = false
 
       let previousPostTime: number | undefined = undefined
 
       for (const item of authorFeed) {
         const postTime = new Date(item.post.indexedAt).getTime()
         if (previousPostTime) postIntervals.push(postTime - previousPostTime)
+        if (item.post.author.did === did && !item.reply) hasSeenTopLevel = true
+        if (item.post.author.did === did && item.reply) hasSeenReply = true
 
         const thisIsEventPost = item.post.uri === post
 
@@ -136,18 +149,47 @@ export async function getNewLabel({
         }
       }
 
-      if (authorFeed.length === limit && postIntervals.length > 1) {
-        const stDev = (numArr: number[]) => {
-          const n = numArr.length
-          const mean = numArr.reduce((a, b) => a + b) / n
-          const deviations = numArr.map((x) => Math.pow(x - mean, 2))
-          const variance = deviations.reduce((a, b) => a + b) / n
-          return Math.sqrt(variance)
-        }
+      const isPotentialRapidPoster =
+        stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
+        postIntervals.length === limit - 1
 
-        if (stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS)
-          createLabels.add('rapidposts')
-        else removeLabels.add('rapidposts')
+      if (!isPotentialRapidPoster && hasSeenTopLevel) {
+        removeLabels.add('onlyreplies')
+        removeLabels.add('rapidposts')
+        break
+      }
+
+      const data = await getAuthorFeed(did, true)
+      if (!data.error) {
+        const topOnlyAuthorResult =
+          data as AppBskyFeedGetAuthorFeed.OutputSchema
+        const topOnlyAuthorFeed = topOnlyAuthorResult.feed
+
+        if (topOnlyAuthorFeed.length === 0 && hasSeenReply) {
+          console.log(topOnlyAuthorFeed)
+          createLabels.add('onlyreplies')
+        } else removeLabels.add('onlyreplies')
+
+        if (isPotentialRapidPoster) {
+          const postIntervals: number[] = topOnlyAuthorFeed.reduce(
+            (acc: number[], curr, index, array) => {
+              if (index !== 0) {
+                const diff =
+                  new Date(curr.post.indexedAt).getTime() -
+                  new Date(array[index - 1].post.indexedAt).getTime()
+                acc.push(Math.abs(diff))
+              }
+              return acc
+            },
+            [],
+          )
+
+          if (stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS) {
+            createLabels.add('rapidposts')
+          } else {
+            removeLabels.add('rapidposts')
+          }
+        }
       }
   }
 

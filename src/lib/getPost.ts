@@ -6,13 +6,6 @@ import CachedFetch from '@/lib/CachedFetch.js'
 
 class PostFetch extends CachedFetch {
   protected async executeBatch() {
-    if (this.batchExecuting) {
-      await wait(10)
-      return true
-    }
-
-    this.batchExecuting = true
-
     const maxRequestChunk = 100
 
     const getPosts = (posts: string[]) => {
@@ -43,8 +36,6 @@ class PostFetch extends CachedFetch {
       Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
 
     if (allPosts.length < maxRequestChunk && !retryExpired) {
-      this.batchExecuting = false
-      await wait(10)
       return true
     }
 
@@ -97,7 +88,6 @@ class PostFetch extends CachedFetch {
       }
     } catch (e) {
       if (env.DANGEROUSLY_EXPOSE_SECRETS) throw e
-      this.batchExecuting = false
       return true
     }
 
@@ -114,8 +104,6 @@ class PostFetch extends CachedFetch {
     }
 
     this.lastBatchRun = Date.now()
-
-    this.batchExecuting = false
     return true
   }
 }

@@ -71,7 +71,6 @@ class UserDetailsFetch extends CachedFetch {
         }
       }
     } catch (e) {
-      this.batchExecuting = false
       return true
     }
 

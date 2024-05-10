@@ -17,25 +17,27 @@ export function cacheStatistics() {
   return fetchCachedFeed.cacheStatistics()
 }
 
-export function purgeCacheForDid(did: string, time?: number) {
-  return fetchCachedFeed.purgeCacheForKey(
+function getFeedUrl(did: string, topOnly: boolean) {
+  return (
     `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getAuthorFeed` +
-      `?actor=${did}&` +
-      `limit=${limit}&` +
-      `filter=posts_with_replies`,
-    time,
+    `?actor=${did}&` +
+    `limit=${limit}&` +
+    (topOnly ? `filter=posts_no_replies` : `filter=posts_with_replies`)
+  )
+}
+
+export function purgeCacheForDid(did: string, time?: number) {
+  return (
+    fetchCachedFeed.purgeCacheForKey(getFeedUrl(did, true), time) ||
+    fetchCachedFeed.purgeCacheForKey(getFeedUrl(did, false), time)
   )
 }
 
 async function getAuthorFeed(
   did: string,
+  topOnly: boolean = false,
 ): Promise<AppBskyFeedGetAuthorFeed.OutputSchema | { error: string }> {
-  const res = await fetchCachedFeed.getJson(
-    `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getAuthorFeed` +
-      `?actor=${did}&` +
-      `limit=${limit}&` +
-      `filter=posts_with_replies`,
-  )
+  const res = await fetchCachedFeed.getJson(getFeedUrl(did, topOnly))
 
   if (res.error) return res as { error: string }
   else return res as AppBskyFeedGetAuthorFeed.OutputSchema

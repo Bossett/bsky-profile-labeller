@@ -124,10 +124,6 @@ export default async function firehoseWatcher() {
             last_sequence: seq,
           },
         })
-      if (global.gc) {
-        logger.debug(`running gc...`)
-        global.gc()
-      }
 
       if (speed < stalled_at && isSlowingDown) {
         logger.error(`firehose stalled at ${speed} ops/s`)
