@@ -130,27 +130,15 @@ export async function getNewLabel({
         }
         previousPostTime = postTime
       }
-      // post not in feed, but handle changed - feed stale?
-      if (
-        postFound === false &&
-        postBeforeChange === true &&
-        postAfterChange === false
-      ) {
+
+      let thisPost: AppBskyFeedDefs.PostView | undefined = undefined
+
+      if (!postFound) {
         try {
           const postData = await getPost(post)
 
           if (!postData.error) {
-            const thisPost = postData as AppBskyFeedDefs.PostView
-
-            if (thisPost) {
-              if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
-                createLabels.add('newhandle')
-
-              if (!(thisPost.record as AppBskyFeedPost.Record).reply)
-                hasSeenTopLevel = true
-
-              purgeAuthorFeedCache(did)
-            }
+            thisPost = postData as AppBskyFeedDefs.PostView
           } else {
             logger.debug(`error finding ${post}: ${postData.error}`)
           }
@@ -159,9 +147,20 @@ export async function getNewLabel({
         }
       }
 
+      if (thisPost) {
+        if (thisPost && postBeforeChange && !postAfterChange) {
+          if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
+            createLabels.add('newhandle')
+        }
+        if (!(thisPost.record as AppBskyFeedPost.Record).reply)
+          hasSeenTopLevel = true
+        else hasSeenReply = true
+      }
+
       const isPotentialRapidPoster =
         stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
-        postIntervals.length === limit - 1
+        postIntervals.length === limit - 1 &&
+        !hasSeenReply
 
       if (!isPotentialRapidPoster && hasSeenTopLevel) {
         removeLabels.add('onlyreplies')
