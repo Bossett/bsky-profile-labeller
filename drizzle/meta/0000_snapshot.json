@@ -1,5 +1,5 @@
 {
-  "id": "fc81eee0-4bbd-43c7-b610-e5fc05196278",
+  "id": "902de2de-053d-4151-86c0-ddc75f6413a0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -50,54 +50,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
-    },
-    "new_handles": {
-      "name": "new_handles",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "handle": {
-          "name": "handle",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unixtimeofchange": {
-          "name": "unixtimeofchange",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unixtimeoffirstpost": {
-          "name": "unixtimeoffirstpost",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "new_handles_name_unique": {
-          "name": "new_handles_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
-        }
-      }
     },
     "subscription_status": {
       "name": "subscription_status",

@@ -1,25 +1,5 @@
 import { integer, pgTable, serial, text, index } from 'drizzle-orm/pg-core'
 
-export const new_handles = pgTable(
-  'new_handles',
-  {
-    id: serial('id').primaryKey(),
-    did: text('did').unique().notNull(),
-    handle: text('handle'),
-    unixtimeofchange: integer('unixtimeofchange'),
-    unixtimeoffirstpost: integer('unixtimeoffirstpost'),
-    label: text('label')
-      .$type<'newaccount' | 'newhandle'>()
-      .notNull()
-      .default('newhandle'),
-  },
-  (table) => {
-    return {
-      didIdx: index('did_idx').on(table.did),
-    }
-  },
-)
-
 export const label_actions = pgTable('label_actions', {
   id: serial('id').primaryKey(),
   label: text('label').notNull(),
