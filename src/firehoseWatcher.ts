@@ -79,6 +79,10 @@ export default async function firehoseWatcher() {
         timeToRealtimeStr = `real time`
       }
 
+      if (lag < 15 * 60 * 1000) {
+        isSlowingDown = false
+      }
+
       lastLag = lag
 
       const detailsCacheStats = userDetailsCacheStats()
