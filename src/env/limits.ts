@@ -11,7 +11,7 @@ const limits = {
   PDS_LIMIT_MAX_RATE: 2_500,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 512,
+  PLC_LIMIT_MAX_CONCURRENT: 256,
   PLC_LIMIT_MAX_DELAY_MS: undefined,
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,
@@ -26,12 +26,12 @@ const limits = {
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 30, // sets the limit parameter requesting an author's posts - 30 is what bsky.app uses so the cache should be fresher
   DB_WRITE_INTERVAL_MS: 5 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
-  MAX_CONCURRENT_PROCESSCOMMITS: 128, // this influences # of http requests, so lower can be faster
+  MAX_CONCURRENT_PROCESSCOMMITS: 64, // this influences # of http requests, so lower can be faster
   MAX_FIREHOSE_DELAY: 3 * 60 * 1000, // how long between events before considering the firehose stalled
   MIN_FIREHOSE_OPS: 30, // the minimum number of operations per interval before considering the firehose stalled
   MAX_PENDING_INSERTS_WAIT_MS: 30 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 64, // the maximum number of label pending events before writing to the db
-  MAX_PROCESSING_TIME_MS: 30 * 1000, // the maximum time any given commit can take to process
+  MAX_PROCESSING_TIME_MS: 20 * 1000, // the maximum time any given commit can take to process
   REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 60 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
   USER_DETAILS_MAX_SIZE: 10000,
@@ -41,15 +41,15 @@ const limits = {
   PLC_DIRECTORY_MAX_SIZE: 15000,
   POST_CACHE_MAX_AGE_MS: 60 * 60 * 1000,
   POST_CACHE_MAX_SIZE: 5000,
-  MAX_BATCH_WAIT_TIME_MS: 100,
-  BATCH_CYCLE_TIMEOUT_MS: 20000,
+  MAX_BATCH_WAIT_TIME_MS: 10,
+  BATCH_CYCLE_TIMEOUT_MS: 19 * 1000,
 }
 
 const validateLimits = {
-  '2. Database writer interval must be grater than maximum processing time':
+  '1. Database writer interval must be grater than maximum processing time':
     limits.DB_WRITE_INTERVAL_MS > limits.MAX_PROCESSING_TIME_MS,
 
-  '4. Commit processing must allow for retries':
+  '2. Commit processing must allow for retries':
     limits.MAX_PROCESSING_TIME_MS >
     limits.MAX_WAIT_RETRY_MS * limits.MAX_RETRIES * 2,
 }

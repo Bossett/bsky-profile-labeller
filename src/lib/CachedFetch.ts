@@ -113,26 +113,15 @@ class CachedFetch {
   }
 
   private isExpiredResult(result: pendingResults) {
-    if (result.completedDate === undefined) {
-      if (
-        result.lastUsed <
-        Date.now() -
-          (this.maxAge +
-            Math.floor(this.maxAge * this.seededRandom(result.lastUsed)))
-      ) {
-        return true
-      }
-      return false
-    }
+    if (!result) return false
+    if (!result.completedDate) return false
 
-    if (
-      result.completedDate <
-      Date.now() -
-        (this.maxAge +
-          Math.floor(this.maxAge * this.seededRandom(result.completedDate)))
-    ) {
-      return true
-    } else return false
+    const expTime =
+      result.completedDate +
+      this.maxAge +
+      Math.floor(this.maxAge * this.seededRandom(result.completedDate))
+
+    return Date.now() >= expTime
   }
 
   protected isFailedResult(result: pendingResults) {
@@ -202,82 +191,65 @@ class CachedFetch {
   protected currentRunningQueries = new Set<string>()
 
   protected async executeBatch(): Promise<boolean> {
-    const batchQueries = Array.from(this.results.keys())
-
-    const allQueries = batchQueries.filter((url) => {
-      const result = this.results.get(url)
-      if (!result) return false
-      if (result.completedDate === undefined) return true
-      return false
-    })
-
-    const batchQueue = new Denque<string>()
+    const allUrls = Array.from(this.results)
+      .filter((result) => !result[1].completedDate)
+      .map((query) => query[0])
 
     const getUrl = async (url: string) => {
-      return (
-        await (this.limiter ? this.limiter(() => fetch(url)) : fetch(url))
-      ).json()
+      const res = await (this.limiter
+        ? this.limiter(() => fetch(url))
+        : fetch(url))
+      return res.json()
     }
 
-    for (const query of allQueries) {
-      batchQueue.push(query)
-    }
+    const promArr: Promise<any>[] = []
 
-    while (!batchQueue.isEmpty()) {
-      const query = batchQueue.shift()
+    while (allUrls.length > 0) {
+      if (this.currentRunningQueries.size <= this.maxBatch) {
+        const url = allUrls.pop()
+        if (!url) break
 
-      if (query) {
-        if (!this.currentRunningQueries.has(query)) {
-          this.currentRunningQueries.add(query)
+        this.currentRunningQueries.add(url)
 
-          getUrl(query)
-            .then((data) => {
-              this.currentRunningQueries.delete(query)
-              this.results.set(query, {
-                url: query,
-                failed: false,
-                data: data,
-                completedDate: Date.now(),
-                errorReason: undefined,
-                lastUsed: Date.now(),
-              })
-            })
-            .catch((e) => {
-              this.currentRunningQueries.delete(query)
+        promArr.push(
+          (async (url) => {
+            await wait(Math.floor(100 * Math.random()))
+
+            const itemToUpdate: pendingResults = {
+              url: url,
+              failed: false,
+              data: undefined,
+              completedDate: undefined,
+              errorReason: undefined,
+              lastUsed: Date.now(),
+            }
+
+            try {
+              const data = await getUrl(url)
+              itemToUpdate.failed = false
+              itemToUpdate.data = data
+              itemToUpdate.completedDate = Date.now()
+              itemToUpdate.errorReason = undefined
+              itemToUpdate.lastUsed = Date.now()
+            } catch (e) {
               if (e.message !== 'fetch failed') {
-                this.results.set(query, {
-                  url: query,
-                  failed: false,
-                  data: undefined,
-                  completedDate: undefined,
-                  lastUsed: Date.now(),
-                })
-              } else {
-                this.results.set(query, {
-                  url: query,
-                  failed: true,
-                  data: undefined,
-                  completedDate: 0,
-                  errorReason: e.message,
-                  lastUsed: Date.now(),
-                })
+                console.log(e)
+                itemToUpdate.failed = true
+                itemToUpdate.data = undefined
+                itemToUpdate.completedDate = Date.now()
+                itemToUpdate.errorReason = e.message
+                itemToUpdate.lastUsed = Date.now()
               }
-            })
-            .finally(() => {
-              this.currentRunningQueries.delete(query)
-            })
-        }
-      } else break
-      while (this.currentRunningQueries.size >= this.maxBatch) {
-        await wait(10)
-      }
+            }
+
+            this.results.set(url, itemToUpdate)
+          })(url).finally(() => this.currentRunningQueries.delete(url)),
+        )
+      } else await wait(10)
     }
 
-    while (this.currentRunningQueries.size > 0) {
-      await wait(10)
-    }
-
-    this.lastBatchRun = Date.now()
+    await Promise.allSettled(promArr)
+    promArr.length = 0
 
     return true
   }
@@ -285,7 +257,6 @@ class CachedFetch {
   private async _executeBatch() {
     let res: boolean = true
     if (!(await this.acquireLock())) {
-      await wait(10)
       return res
     }
     this.globalCacheExpired += this.trackLimit()
@@ -299,112 +270,72 @@ class CachedFetch {
   }
 
   private async _getJson(url: string): Promise<any | { error: string }> {
-    let cacheHit = true
-
-    let timeoutExceed = false
     const launchTime = Date.now()
 
-    do {
-      if (Date.now() > launchTime + this.cycleTimeout) timeoutExceed = true
+    const result = this.results.get(url)
 
-      if (!this.results.has(url)) {
-        cacheHit = false
-        this.globalCacheMiss++
+    if (!result || this.isExpiredResult(result)) {
+      this.globalCacheMiss++
+      this.results.set(url, {
+        url: url,
+        failed: false,
+        data: undefined,
+        completedDate: undefined,
+        errorReason: undefined,
+        lastUsed: Date.now(),
+      })
+    } else {
+      if (result.completedDate) {
+        this.globalCacheHit++
         this.results.set(url, {
           url: url,
-          failed: false,
-          data: undefined,
-          completedDate: undefined,
-          errorReason: undefined,
+          failed: result.failed,
+          data: result.data,
+          completedDate: result.completedDate,
+          errorReason: result.errorReason,
           lastUsed: Date.now(),
+          timesUsed: result.timesUsed ? result.timesUsed + 1 : 1,
         })
-        continue
+        if (result.failed)
+          return { error: `${result.errorReason} (from cache)` }
+        else return result.data
       }
-
-      const result = this.results.get(url)
-      if (!result) continue
-
-      if (this.isExpiredResult(result)) {
-        this.purgeCacheForKey(url)
-        this.results.set(url, {
-          url: url,
-          failed: false,
-          data: undefined,
-          completedDate: undefined,
-          errorReason: undefined,
-          lastUsed: Date.now(),
-        })
-        continue
-      }
-
-      if (this.isFailedResult(result)) {
-        if (cacheHit) this.globalCacheHit++
-
-        return {
-          error:
-            (`${result.errorReason}` || 'unknown') +
-            `${cacheHit ? ' (cached)' : ''}`,
-        }
-      }
-
-      if (result) {
-        const data = result.data
-        if (data) {
-          this.results.set(url, {
-            url: url,
-            failed: false,
-            data: data,
-            completedDate: result.completedDate,
-            errorReason: undefined,
-            lastUsed: Date.now(),
-            timesUsed: result.timesUsed ? result.timesUsed + 1 : 1,
-          })
-          if (cacheHit) this.globalCacheHit++
-
-          return data as any
-        } else {
-          this.results.set(url, {
-            url: url,
-            failed: result.failed,
-            data: result.data,
-            completedDate: result.completedDate,
-            errorReason: result.errorReason,
-            lastUsed: Date.now(),
-          })
-        }
-      }
-    } while (
-      (await this._executeBatch()) &&
-      !timeoutExceed &&
-      this.results.has(url) &&
-      this.getPromiseMap.has(url)
-    )
-
-    if (!this.getPromiseMap.has(url)) {
-      const result = this.results.get(url)
-      if (!result?.completedDate || result?.lastUsed === 0) {
-        this.globalCacheExpired++
-        this.results.delete(url)
-      }
-      return { error: 'no pending promise' }
     }
 
-    if (timeoutExceed) {
-      if (
-        this.timeoutFailures >
-        20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)
-      ) {
-        logger.warn(
-          `${this.timeoutFailures} timeout events (this fetching ${url})`,
-        )
-        this.timeoutFailures = 0
+    while (await wait(10)) {
+      if (Date.now() - launchTime > this.cycleTimeout) {
+        if (
+          this.timeoutFailures >
+          20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)
+        ) {
+          logger.warn(
+            `${this.timeoutFailures} timeout events (this fetching ${url})`,
+          )
+          this.timeoutFailures = 0
+        }
+        logger.debug(`timeout for ${url}`)
+        this.timeoutFailures++
+        return { error: 'timeout' }
       }
-      logger.debug(`timeout for ${url}`)
-      this.timeoutFailures++
-      return { error: 'timeout' }
+
+      this._executeBatch()
+
+      const result = this.results.get(url)
+
+      if (!result) break
+
+      if (result.completedDate) {
+        if (!result.failed) return result.data
+        else {
+          const errorReason = `${result.errorReason}${
+            result.timesUsed === 1 ? ' (from cache)' : ''
+          }`
+          return { error: errorReason }
+        }
+      }
     }
 
-    return { error: 'unknown error' }
+    return { error: 'record expired during execution' }
   }
 
   private getPromiseMap = new Map<string, Promise<any>>()

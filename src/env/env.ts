@@ -22,6 +22,7 @@ const env = { ...envSchema.parse(process.env), limits: { ...limits } }
 
 if (env.DANGEROUSLY_EXPOSE_SECRETS) {
   logger.level = 'debug'
+  env.limits.DB_WRITE_INTERVAL_MS = 30 * 1000
   const log: string = JSON.stringify(env, null, 2)
   for (const line of log.split('\n')) {
     logger.debug(line)

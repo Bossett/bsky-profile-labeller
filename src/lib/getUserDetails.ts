@@ -94,8 +94,6 @@ class UserDetailsFetch extends CachedFetch {
       }
     }
 
-    this.lastBatchRun = Date.now()
-
     return true
   }
 }

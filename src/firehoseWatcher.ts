@@ -41,9 +41,7 @@ export default async function firehoseWatcher() {
       await wait(10)
     } while (!seenFirstCommit)
 
-    let cycleInterval = env.DANGEROUSLY_EXPOSE_SECRETS
-      ? 30000
-      : interval_ms - (Date.now() % interval_ms)
+    let cycleInterval = interval_ms - (Date.now() % interval_ms)
     let cycleCount = 0
     while (await wait(cycleInterval)) {
       const speed = (itemsProcessed + itemsSkipped) / (cycleInterval / 1000)
@@ -140,9 +138,7 @@ export default async function firehoseWatcher() {
       itemsSkipped = 0
       itemsProcessed = 0
 
-      cycleInterval = env.DANGEROUSLY_EXPOSE_SECRETS
-        ? 30000
-        : interval_ms - (Date.now() % interval_ms)
+      cycleInterval = interval_ms - (Date.now() % interval_ms)
     }
   }
 

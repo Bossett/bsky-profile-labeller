@@ -2,10 +2,11 @@ import { AppBskyFeedDefs } from '@atproto/api'
 import { publicLimit } from '@/env/rateLimit.js'
 import env from '@/env/env.js'
 import CachedFetch from '@/lib/CachedFetch.js'
+import logger from '@/helpers/logger.js'
 
 class PostFetch extends CachedFetch {
   protected async executeBatch() {
-    const maxRequestChunk = 100
+    const maxRequestChunk = 30
 
     const getPosts = (posts: string[]) => {
       const postQueryString = 'uris=' + posts.join('&uris=')
@@ -79,14 +80,6 @@ class PostFetch extends CachedFetch {
               for (const url of postsChunk) {
                 const idxToRemove = postURLs.indexOf(url)
                 postURLs.splice(idxToRemove, 1)
-
-                this.results.set(url, {
-                  data: undefined,
-                  completedDate: undefined,
-                  url: url,
-                  failed: false,
-                  lastUsed: Date.now(),
-                })
               }
             }),
         )
@@ -108,7 +101,6 @@ class PostFetch extends CachedFetch {
       }
     }
 
-    this.lastBatchRun = Date.now()
     return true
   }
 }
@@ -121,7 +113,9 @@ const postFetch = new PostFetch({
 async function getPost(
   did: string,
 ): Promise<AppBskyFeedDefs.PostView | { error: string }> {
-  return await postFetch.getJson(did)
+  const result = await postFetch.getJson(did)
+  if (result) return result
+  else return { error: 'result undefined' }
 }
 
 export function cacheStatistics() {
