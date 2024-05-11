@@ -138,7 +138,9 @@ export async function getNewLabel({
           const postData = await getPost(post)
 
           if (!postData.error) {
-            thisPost = postData as AppBskyFeedDefs.PostView
+            thisPost = postData.error
+              ? undefined
+              : (postData as AppBskyFeedDefs.PostView)
           } else {
             logger.debug(`error finding ${post}: ${postData.error}`)
           }
@@ -152,9 +154,15 @@ export async function getNewLabel({
           if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
             createLabels.add('newhandle')
         }
-        if (!(thisPost.record as AppBskyFeedPost.Record).reply)
-          hasSeenTopLevel = true
-        else hasSeenReply = true
+
+        const record = thisPost.record as AppBskyFeedPost.Record
+
+        if (record) {
+          if (record.reply) hasSeenReply = true
+          else hasSeenTopLevel = true
+        }
+
+        purgeAuthorFeedCache(did)
       }
 
       const isPotentialRapidPoster =

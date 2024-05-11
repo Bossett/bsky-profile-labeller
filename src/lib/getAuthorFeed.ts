@@ -27,10 +27,16 @@ function getFeedUrl(did: string, topOnly: boolean) {
 }
 
 export function purgeCacheForDid(did: string, time?: number) {
-  return (
-    fetchCachedFeed.purgeCacheForKey(getFeedUrl(did, true), time) ||
-    fetchCachedFeed.purgeCacheForKey(getFeedUrl(did, false), time)
+  const purgedTop = fetchCachedFeed.purgeCacheForKey(
+    getFeedUrl(did, true),
+    time,
   )
+  const purgedFull = fetchCachedFeed.purgeCacheForKey(
+    getFeedUrl(did, false),
+    time,
+  )
+
+  return purgedTop || purgedFull
 }
 
 async function getAuthorFeed(
