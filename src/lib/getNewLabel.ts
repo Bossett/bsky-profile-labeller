@@ -1,4 +1,8 @@
-import { AppBskyFeedDefs, AppBskyFeedGetAuthorFeed } from '@atproto/api'
+import {
+  AppBskyFeedDefs,
+  AppBskyFeedGetAuthorFeed,
+  AppBskyFeedPost,
+} from '@atproto/api'
 
 import { OperationsResult } from '@/lib/insertOperations.js'
 import getPost from '@/lib/getPost.js'
@@ -141,6 +145,10 @@ export async function getNewLabel({
             if (thisPost) {
               if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
                 createLabels.add('newhandle')
+
+              if (!(thisPost.record as AppBskyFeedPost.Record).reply)
+                hasSeenTopLevel = true
+
               purgeAuthorFeedCache(did)
             }
           } else {
@@ -153,8 +161,7 @@ export async function getNewLabel({
 
       const isPotentialRapidPoster =
         stDev(postIntervals) < env.limits.REGULAR_POST_STDEV_MS &&
-        postIntervals.length === limit - 1 &&
-        !hasSeenReply
+        postIntervals.length === limit - 1
 
       if (!isPotentialRapidPoster && hasSeenTopLevel) {
         removeLabels.add('onlyreplies')
