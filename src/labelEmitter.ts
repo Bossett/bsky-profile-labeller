@@ -99,7 +99,9 @@ export default async function labelEmitter() {
         : (eventLog[event.label] = 1)
 
       const joinedComments = [
-        accumulatedEvents[event.did].eventInput.event.comment,
+        ...(accumulatedEvents[event.did].eventInput.event.comment
+          ? [accumulatedEvents[event.did].eventInput.event.comment]
+          : []),
         ...(event.comment ? [event.comment] : []),
       ].join(', ')
 
