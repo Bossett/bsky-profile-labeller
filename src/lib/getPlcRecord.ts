@@ -1,6 +1,7 @@
 import { plcLimit } from '@/env/rateLimit.js'
 import CachedFetch from '@/lib/CachedFetch.js'
 import env from '@/env/env.js'
+import * as plc from '@did-plc/lib'
 
 const plcFetch = new CachedFetch({
   maxAge: env.limits.PLC_DIRECTORY_MAX_AGE_MS,
@@ -20,37 +21,66 @@ export function purgeCacheForDid(did: string, time?: number) {
   )
 }
 
-async function getPlcRecord(did: string) {
-  const res = await plcFetch.getJson(`${env.PLC_DIRECTORY}/${did}/log/audit`)
+async function getPlcOperations(
+  did: string,
+): Promise<plc.ExportedOp[] | { error: string }> {
+  let res: plc.ExportedOp[]
+  try {
+    res = await plcFetch.getJson(`${env.PLC_DIRECTORY}/${did}/log/audit`)
+  } catch (e) {
+    return { error: e.message }
+  }
 
-  if (res.error) return []
+  if (res) {
+    res.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    )
+    return res as plc.ExportedOp[]
+  } else return res as { error: string }
+}
 
-  const plcJson = res as {
-    did: string
-    createdAt: string
-    operation: { alsoKnownAs?: string[] }
-  }[]
+export async function getPlcPDS(did: string): Promise<string | undefined> {
+  const plcOperations = await getPlcOperations(did)
+  if ('error' in plcOperations) return undefined
+
+  let pds: string = ''
+
+  for (const op of plcOperations) {
+    if (
+      op.operation.type === 'plc_operation' &&
+      op.operation?.services?.atproto_pds?.endpoint !== undefined
+    ) {
+      pds = op.operation?.services?.atproto_pds.endpoint
+    }
+  }
+}
+
+async function getPlcHandleHistory(did: string) {
+  const plcOperations = await getPlcOperations(did)
+
+  if ('error' in plcOperations) return []
 
   const handles: { handle: string; createdAt: Date }[] = []
 
-  plcJson.sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  )
-
   let previousHandle: string = ''
 
-  for (const op of plcJson) {
-    if (op.operation?.alsoKnownAs === undefined) break
-    const handle = op.operation.alsoKnownAs[0]?.split('at://')[1]
-    const createdAt = new Date(op.createdAt)
+  for (const op of plcOperations) {
+    if (
+      op.operation.type === 'plc_operation' &&
+      op.operation?.alsoKnownAs.length > 0
+    ) {
+      const handle = op.operation.alsoKnownAs[0]?.split('at://')[1]
+      const createdAt = new Date(op.createdAt)
 
-    if (handle !== previousHandle) {
-      previousHandle = handle
-      handles.push({ handle: handle, createdAt: createdAt })
+      if (handle !== previousHandle) {
+        previousHandle = handle
+        handles.push({ handle: handle, createdAt: createdAt })
+      }
     }
   }
 
   return handles
 }
 
-export default getPlcRecord
+export default getPlcHandleHistory

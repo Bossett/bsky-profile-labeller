@@ -13,7 +13,7 @@ import logger from '@/helpers/logger.js'
 import getAuthorFeed, {
   purgeCacheForDid as purgeAuthorFeedCache,
 } from '@/lib/getAuthorFeed.js'
-import getPlcRecord from '@/lib/getPlcRecord.js'
+import getPlcHandleHistory from '@/lib/getPlcRecord.js'
 
 interface Params {
   did: string
@@ -89,7 +89,7 @@ export async function getNewLabel({
     case false:
       break
     case true:
-      const handles = await getPlcRecord(did)
+      const handles = await getPlcHandleHistory(did)
       if (handles.length <= 1) break // no handle changes or error
 
       const currentHandle = handles[handles.length - 1]

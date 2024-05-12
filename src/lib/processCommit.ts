@@ -6,7 +6,7 @@ import getUserDetails, {
 import getAuthorFeed, {
   purgeCacheForDid as purgeAuthorFeedCache,
 } from '@/lib/getAuthorFeed.js'
-import getPlcRecord, {
+import getPlcHandleHistory, {
   purgeCacheForDid as purgePlcDirectoryCache,
 } from '@/lib/getPlcRecord.js'
 import { getExpiringLabels } from '@/lib/getExpiringLabels.js'

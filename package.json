@@ -12,6 +12,7 @@
     "@atproto/repo": "^0.4.0",
     "@atproto/syntax": "^0.3.0",
     "@atproto/xrpc-server": "^0.5.1",
+    "@did-plc/lib": "^0.0.4",
     "@neondatabase/serverless": "^0.9.1",
     "@types/express": "^4.17.17",
     "@types/ws": "^8.5.10",
