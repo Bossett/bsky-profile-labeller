@@ -16,6 +16,13 @@ export async function getProfileLabel(
 
   if (pds === 'https://atproto.brid.gy') {
     operations.create.push('bridgy')
+
+    if (
+      profile.handle.toLowerCase().match(/^npub[0-9a-z]{59}\.[a-z\.]+$/) !==
+      null
+    ) {
+      operations.create.push('nostr')
+    }
   }
 
   if (!profile.did.startsWith('did:plc:')) {
