@@ -4,7 +4,6 @@ COPY ./package.json .
 COPY ./yarn.lock .
 RUN yarn install
 COPY . .
-RUN yarn validLimits
 RUN yarn build
 
 FROM node:20 AS deps
