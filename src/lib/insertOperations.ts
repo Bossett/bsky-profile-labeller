@@ -8,7 +8,6 @@ const PENDING_INTERVAL = env.limits.MAX_PENDING_INSERTS_WAIT_MS
 export type operationType = typeof schema.label_actions.$inferInsert
 
 const pendingOperations: operationType[] = []
-const operationsSet = new Set()
 
 let insertTimeout: NodeJS.Timeout | null = null
 
@@ -17,25 +16,11 @@ export interface OperationsResult {
   remove: string[]
 }
 
-function getOpKey(operation: operationType) {
-  return JSON.stringify({
-    label: operation.label,
-    action: operation.action,
-    did: operation.did,
-  })
-}
-
 export async function insertOperations(
   operations: operationType[],
   force = false,
 ) {
-  for (const operation of operations) {
-    const operationKey = getOpKey(operation)
-    if (!operationsSet.has(operationKey)) {
-      operationsSet.add(operationKey)
-      pendingOperations.push(operation)
-    }
-  }
+  pendingOperations.push(...operations)
 
   if (insertTimeout === null) {
     logger.debug(`new insert called, setting timer...`)
@@ -55,11 +40,7 @@ export async function insertOperations(
   while (pendingOperations.length > 0) {
     const operation = pendingOperations.pop()
     if (operation) {
-      const operationKey = getOpKey(operation)
-      if (operationsSet.has(operationKey)) {
-        operationsSet.delete(operationKey)
-        activeOps.push(operation)
-      }
+      activeOps.push(operation)
     }
   }
 

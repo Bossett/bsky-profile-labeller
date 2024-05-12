@@ -23,6 +23,7 @@ export default async function labelEmitter() {
         comment: true,
         id: true,
         action: true,
+        unixtimescheduled: true,
       },
     })
 
@@ -51,10 +52,12 @@ export default async function labelEmitter() {
           createdBy: agentDid,
         }
         const eventIds: number[] = []
+        const timestamp: number = Date.now()
 
         accumulatedEvents[event.did] = {
           eventInput: eventInput,
           eventIds: eventIds,
+          timestamp: timestamp,
         }
       }
 
@@ -107,6 +110,10 @@ export default async function labelEmitter() {
 
       accumulatedEvents[event.did].eventInput.event.comment = joinedComments
 
+      accumulatedEvents[event.did].timestamp = event.unixtimescheduled
+        ? event.unixtimescheduled * 1000
+        : Date.now()
+
       accumulatedEvents[event.did].eventIds.push(event.id)
 
       totalEvents++
@@ -120,11 +127,17 @@ export default async function labelEmitter() {
       const fn = async () => {
         const did = `${didForEvent}`
 
+        groupedEvents[did].eventInput.event.comment = `${
+          groupedEvents[did].eventInput.event.comment
+        } seen at: ${new Date(
+          groupedEvents[did].timestamp,
+        ).toISOString()}`.trim()
+
         if (await emitAccountReport(groupedEvents[did].eventInput)) {
           groupedEvents[did].eventIds.forEach((id: number) => {
             completedEvents.add(id)
           })
-          purgeCacheForDid(did)
+          purgeCacheForDid(did, groupedEvents[did].timestamp + 1000)
         }
         return
       }

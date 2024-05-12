@@ -258,6 +258,7 @@ export function _processCommit(commit: Commit): Promise<void> {
             action: 'create',
             did: did,
             comment: `${seq}: +${newLabel}`,
+            unixtimescheduled: Math.floor(time / 1000),
           })
         }
       }
