@@ -8,12 +8,9 @@ const app: (() => Promise<void>)[] = [
   async () => scheduler(),
 ]
 
-let lastRun = Date.now()
-
 const promises = app.map((func) => func())
 
 try {
-  lastRun = Date.now()
   await Promise.all(promises)
 } catch (e) {
   console.log(e)

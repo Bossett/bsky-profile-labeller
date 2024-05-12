@@ -133,6 +133,26 @@ export default async function firehoseWatcher() {
         logger.info(line)
       }
 
+      if (
+        postCacheStats.timeoutFailures > 0 ||
+        detailsCacheStats.timeoutFailures > 0 ||
+        authorFeedCacheStats.timeoutFailures > 0 ||
+        plcCacheStats.timeoutFailures > 0
+      ) {
+        logger.warn(
+          `${detailsCacheStats.timeoutFailures} details cache timeout failures`,
+        )
+        logger.warn(
+          `${authorFeedCacheStats.timeoutFailures} author feed cache timeout failures`,
+        )
+        logger.warn(
+          `${plcCacheStats.timeoutFailures} plc cache timeout failures`,
+        )
+        logger.warn(
+          `${postCacheStats.timeoutFailures} post cache timeout failures`,
+        )
+      }
+
       detailsCacheStats.reset()
       authorFeedCacheStats.reset()
       plcCacheStats.reset()

@@ -158,6 +158,7 @@ class CachedFetch {
     return {
       cacheHit: this.globalCacheHit,
       cacheMiss: this.globalCacheMiss,
+      timeoutFailures: this.timeoutFailures,
       hitRate: isNaN(hitRate()) ? () => 0 : hitRate,
       items: () => this.results.size,
       recentExpired: () => this.globalCacheExpired,
@@ -203,7 +204,10 @@ class CachedFetch {
       const res = await (this.limiter
         ? this.limiter(() => fetch(url))
         : fetch(url))
-      return res.json()
+      return res.json().catch((e) => {
+        logger.warn(`error in cached fetch:\n${e}`)
+        throw e
+      })
     }
 
     const promArr: Promise<any>[] = []
@@ -237,7 +241,6 @@ class CachedFetch {
               itemToUpdate.lastUsed = Date.now()
             } catch (e) {
               if (e.message !== 'fetch failed') {
-                console.log(e)
                 itemToUpdate.failed = true
                 itemToUpdate.data = undefined
                 itemToUpdate.completedDate = Date.now()
@@ -317,16 +320,7 @@ class CachedFetch {
 
     while (await wait(10)) {
       if (Date.now() - launchTime > this.cycleTimeout) {
-        if (
-          this.timeoutFailures >
-          20 * (env.limits.DB_WRITE_INTERVAL_MS / 60000)
-        ) {
-          logger.warn(
-            `${this.timeoutFailures} timeout events (this fetching ${url})`,
-          )
-          this.timeoutFailures = 0
-        }
-        logger.debug(`timeout for ${url}`)
+        logger.warn(`timeout for ${url}`)
         this.timeoutFailures++
         return { error: 'timeout' }
       }
