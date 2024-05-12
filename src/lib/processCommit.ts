@@ -246,7 +246,7 @@ export function _processCommit(commit: Commit): Promise<void> {
             label: newLabel,
             action: 'remove',
             did: did,
-            comment: `removing ${newLabel} from ${did}`,
+            comment: `${seq}: -${newLabel}`,
           })
         }
       }
@@ -257,7 +257,7 @@ export function _processCommit(commit: Commit): Promise<void> {
             label: newLabel,
             action: 'create',
             did: did,
-            comment: `creating ${newLabel} for ${did}`,
+            comment: `${seq}: +${newLabel}`,
           })
         }
       }

@@ -16,6 +16,7 @@ export default async function labelEmitter() {
         schema.label_actions.unixtimescheduled,
         Math.floor(Date.now() / 1000),
       ),
+      orderBy: schema.label_actions.unixtimescheduled,
       columns: {
         label: true,
         did: true,
@@ -57,22 +58,52 @@ export default async function labelEmitter() {
         }
       }
 
-      if (event.action === 'create')
-        accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
-          event.label,
-        )
-      if (event.action === 'remove')
-        accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
-          event.label,
-        )
+      const inNegate: number = (
+        accumulatedEvents[event.did].eventInput.event
+          .negateLabelVals as string[]
+      ).findIndex((item) => item === event.label)
+      const inCreate: number = (
+        accumulatedEvents[event.did].eventInput.event
+          .createLabelVals as string[]
+      ).findIndex((item) => item === event.label)
+
+      if (event.action === 'create') {
+        if (inNegate !== -1) {
+          accumulatedEvents[event.did].eventInput.event.negateLabelVals.splice(
+            inNegate,
+            1,
+          )
+        }
+        if (inCreate === -1) {
+          accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
+            event.label,
+          )
+        }
+      }
+      if (event.action === 'remove') {
+        if (inCreate !== -1) {
+          accumulatedEvents[event.did].eventInput.event.createLabelVals.splice(
+            inCreate,
+            1,
+          )
+        }
+        if (inNegate === -1) {
+          accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
+            event.label,
+          )
+        }
+      }
 
       eventLog[event.label]
         ? eventLog[event.label]++
         : (eventLog[event.label] = 1)
 
-      accumulatedEvents[event.did].eventInput.event.comment += `${
-        event.comment || ''
-      }\n`
+      const joinedComments = [
+        accumulatedEvents[event.did].eventInput.event.comment,
+        ...(event.comment ? [event.comment] : []),
+      ].join(', ')
+
+      accumulatedEvents[event.did].eventInput.event.comment = joinedComments
 
       accumulatedEvents[event.did].eventIds.push(event.id)
 
@@ -86,22 +117,6 @@ export default async function labelEmitter() {
     for (const didForEvent of Object.keys(groupedEvents)) {
       const fn = async () => {
         const did = `${didForEvent}`
-        const negateLabelVals = Array.from(
-          new Set([...groupedEvents[did].eventInput.event.negateLabelVals]),
-        )
-        const createLabelVals = Array.from(
-          new Set([
-            ...groupedEvents[did].eventInput.event.createLabelVals.filter(
-              (val: string) => {
-                return !negateLabelVals.includes(val)
-              },
-            ),
-          ]),
-        )
-
-        groupedEvents[did].eventInput.event.createLabelVals = createLabelVals
-
-        groupedEvents[did].eventInput.event.negateLabelVals = negateLabelVals
 
         if (await emitAccountReport(groupedEvents[did].eventInput)) {
           groupedEvents[did].eventIds.forEach((id: number) => {
