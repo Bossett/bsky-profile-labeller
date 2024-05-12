@@ -3,12 +3,7 @@ import { getProfileLabel } from '@/lib/getProfileLabel.js'
 import getUserDetails, {
   purgeCacheForDid as purgeDetailsCache,
 } from '@/lib/getUserDetails.js'
-import getAuthorFeed, {
-  purgeCacheForDid as purgeAuthorFeedCache,
-} from '@/lib/getAuthorFeed.js'
-import getPlcHandleHistory, {
-  purgeCacheForDid as purgePlcDirectoryCache,
-} from '@/lib/getPlcRecord.js'
+import { purgeCacheForDid as purgePlcDirectoryCache } from '@/lib/getPlcRecord.js'
 import { getExpiringLabels } from '@/lib/getExpiringLabels.js'
 import {
   OperationsResult,
@@ -21,6 +16,7 @@ import logger from '@/helpers/logger.js'
 import env from '@/env/env.js'
 import wait from '@/helpers/wait.js'
 import Denque from 'denque'
+import { insertListItemOperation } from '@/lib/insertListItemOperation.js'
 
 type Commit = {
   record?: any
@@ -269,6 +265,8 @@ export function _processCommit(commit: Commit): Promise<void> {
       ) {
         await insertOperations(operations)
       }
+
+      insertListItemOperation(did, labelOperations)
 
       clearTimeout(failTimeout)
       resolve()
