@@ -1,6 +1,7 @@
 import { AppBskyActorDefs, ComAtprotoLabelDefs } from '@atproto/api'
 
 import { OperationsResult } from '@/lib/insertOperations.js'
+import { getPlcPDS } from '@/lib/getPlcRecord.js'
 
 export async function getProfileLabel(
   profile: AppBskyActorDefs.ProfileViewDetailed,
@@ -9,6 +10,12 @@ export async function getProfileLabel(
   const operations: OperationsResult = {
     create: [],
     remove: [],
+  }
+
+  const pds = await getPlcPDS(profile.did)
+
+  if (pds === 'https://atproto.brid.gy') {
+    operations.create.push('bridgy')
   }
 
   if (!profile.did.startsWith('did:plc:')) {

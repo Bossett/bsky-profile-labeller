@@ -54,6 +54,7 @@ export async function getPlcPDS(did: string): Promise<string | undefined> {
       pds = op.operation?.services?.atproto_pds.endpoint
     }
   }
+  return pds
 }
 
 async function getPlcHandleHistory(did: string) {
