@@ -55,7 +55,12 @@ export default class FirehoseIterable {
     for await (const frame of sub) {
       // prevent memory leak by keeping queue to ~5000
       // need to adjust to the best values to *just* keep the ws alive
-      const [maxWait, maxQueue, scaleFromPer] = [1500, this.maxPending, 0.8]
+
+      const [maxWait, maxQueue, scaleFromPer] = [
+        this.timeout - 1000,
+        this.maxPending,
+        0.5,
+      ]
       const scaleFrom = maxQueue * scaleFromPer
       const waitTime = Math.floor(
         Math.min(
@@ -65,6 +70,10 @@ export default class FirehoseIterable {
         ),
       )
       if (waitTime > 100) await wait(waitTime)
+
+      while (waitTime >= maxWait && this.commitQueue.length >= maxQueue) {
+        await wait(10)
+      }
 
       this.commitQueue.push(frame as Commit)
     }
