@@ -25,30 +25,12 @@ class PostFetch extends CachedFetch {
 
     const batchDids = Array.from(this.results.keys()).sort()
 
-    const allPosts: string[] = batchDids.filter((url) => {
+    const postURLs: string[] = batchDids.filter((url) => {
       const result = this.results.get(url)
       if (!result) return false
       if (this.isFailedResult(result)) return false
       if (result.completedDate === undefined) return true
     })
-
-    const retryExpired =
-      Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
-
-    if (allPosts.length < maxRequestChunk && !retryExpired) {
-      return true
-    }
-
-    const sliceAt = allPosts.length - (allPosts.length % maxRequestChunk)
-
-    const postURLs = allPosts.slice(
-      0,
-      sliceAt > 0
-        ? retryExpired
-          ? allPosts.length
-          : sliceAt
-        : allPosts.length,
-    )
 
     const foundPosts = new Set<string>()
 
@@ -66,7 +48,7 @@ class PostFetch extends CachedFetch {
               for (const url of postsChunk) {
                 if (postsMap[url]) {
                   this.results.set(url, {
-                    data: postsMap[url],
+                    data: this.compressData(postsMap[url]),
                     completedDate: Date.now(),
                     url: url,
                     failed: false,

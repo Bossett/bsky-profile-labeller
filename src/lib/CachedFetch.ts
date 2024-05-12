@@ -3,12 +3,12 @@ import logger from '@/helpers/logger.js'
 
 import env from '@/env/env.js'
 
-import Denque from 'denque'
+import zlib from 'node:zlib'
 
 type pendingResults = {
   url: string
   completedDate?: number
-  data?: any
+  data?: Buffer | undefined
   errorReason?: string
   failed: boolean
   lastUsed: number
@@ -45,6 +45,14 @@ class CachedFetch {
     this.maxBatch = maxBatch || 25
   }
 
+  protected compressData(data: any) {
+    return zlib.deflateSync(JSON.stringify(data))
+  }
+
+  protected expandData(data: any) {
+    return JSON.parse(zlib.inflateSync(data).toString())
+  }
+
   private lock: Promise<void> | null = null
   private unlock: (() => void) | null = null
 
@@ -77,7 +85,7 @@ class CachedFetch {
   private trackLimit() {
     if (this.results.size <= this.maxSize) return 0
 
-    const targetFree = 0.25
+    const targetFree = 0.33
     const targetSize = Math.floor((1 - targetFree) * this.maxSize)
 
     const initialSize = this.results.size
@@ -88,11 +96,21 @@ class CachedFetch {
       }
     }
 
+    logger.debug(`cache ${initialSize} -> ${this.results.size} expire`)
+
     const getAdjustedDate = (result: pendingResults) => {
+      // assumption is that all expired by completed date cleared ^
+
       const now = Date.now()
-      if (!result.completedDate) return now + 1000
-      if (this.getPromiseMap.has(result.url)) return now + 1000
-      if (result.timesUsed) return result.lastUsed + result.timesUsed * 30000
+
+      if (!result.completedDate || this.getPromiseMap.has(result.url))
+        // is pending, expire in the future
+        return now + 1000
+
+      if (result.timesUsed)
+        // expire most-used items last
+        return result.lastUsed + (result.timesUsed - 1) * 5 * 50 * 1000
+
       return result.lastUsed
     }
 
@@ -107,7 +125,7 @@ class CachedFetch {
       entries.length = 0 // explicitly remove
     }
 
-    logger.debug(`cache ${initialSize} -> ${this.results.size}`)
+    logger.debug(`cache ${initialSize} -> ${this.results.size} over max`)
 
     return initialSize - this.results.size
   }
@@ -118,8 +136,9 @@ class CachedFetch {
 
     const expTime =
       result.completedDate +
-      this.maxAge +
-      Math.floor(this.maxAge * this.seededRandom(result.completedDate))
+      0.75 * this.maxAge +
+      0.5 * Math.floor(this.maxAge * this.seededRandom(result.completedDate))
+    // expiry between 0.75 and 1.25 of maxAge fuzzed a bit to avoid mass expiry
 
     return Date.now() >= expTime
   }
@@ -147,22 +166,7 @@ class CachedFetch {
         this.globalCacheMiss = 0
         this.globalCacheExpired = 0
         this.timeoutFailures = 0
-        this.scavengeExpired()
       },
-    }
-  }
-
-  private scavengeExpired() {
-    const aboveCap = this.trackLimit()
-    this.globalCacheExpired += aboveCap
-
-    if (aboveCap === 0) {
-      for (const [url, result] of this.results) {
-        if (this.isExpiredResult(result)) {
-          this.results.delete(url)
-          this.globalCacheExpired++
-        }
-      }
     }
   }
 
@@ -227,7 +231,7 @@ class CachedFetch {
             try {
               const data = await getUrl(url)
               itemToUpdate.failed = false
-              itemToUpdate.data = data
+              itemToUpdate.data = this.compressData(data)
               itemToUpdate.completedDate = Date.now()
               itemToUpdate.errorReason = undefined
               itemToUpdate.lastUsed = Date.now()
@@ -254,18 +258,26 @@ class CachedFetch {
     return true
   }
 
+  private minBatchWaitTime = env.limits.MIN_BATCH_WAIT_TIME_MS
+
   private async _executeBatch() {
     let res: boolean = true
+
+    if (this.lastBatchRun > Date.now() - this.minBatchWaitTime) return res
+
     if (!(await this.acquireLock())) {
       return res
     }
+
     this.globalCacheExpired += this.trackLimit()
+
     try {
       res = await this.executeBatch()
+      this.lastBatchRun = Date.now()
     } finally {
       this.releaseLock()
     }
-    this.lastBatchRun = Date.now()
+
     return res
   }
 
@@ -283,6 +295,7 @@ class CachedFetch {
         completedDate: undefined,
         errorReason: undefined,
         lastUsed: Date.now(),
+        timesUsed: 0,
       })
     } else {
       if (result.completedDate) {
@@ -298,7 +311,7 @@ class CachedFetch {
         })
         if (result.failed)
           return { error: `${result.errorReason} (from cache)` }
-        else return result.data
+        else return this.expandData(result.data)
       }
     }
 
@@ -325,10 +338,10 @@ class CachedFetch {
       if (!result) break
 
       if (result.completedDate) {
-        if (!result.failed) return result.data
+        if (!result.failed) return this.expandData(result.data)
         else {
           const errorReason = `${result.errorReason}${
-            result.timesUsed === 1 ? ' (from cache)' : ''
+            result.timesUsed && result.timesUsed > 0 ? ' (from cache)' : ''
           }`
           return { error: errorReason }
         }

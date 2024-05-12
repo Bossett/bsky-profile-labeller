@@ -13,26 +13,12 @@ class UserDetailsFetch extends CachedFetch {
 
     const batchDids = Array.from(this.results.keys()).sort()
 
-    const allActors: string[] = batchDids.filter((did) => {
+    const actors: string[] = batchDids.filter((did) => {
       const result = this.results.get(did)
       if (!result) return false
       if (this.isFailedResult(result)) return false
       if (result.completedDate === undefined) return true
     })
-
-    const retryExpired =
-      Date.now() - this.lastBatchRun > env.limits.MAX_BATCH_WAIT_TIME_MS
-
-    if (allActors.length < maxRequestChunk && !retryExpired) {
-      await wait(10)
-      return true
-    }
-
-    const sliceAt = retryExpired
-      ? allActors.length
-      : Math.max(0, allActors.length - (allActors.length % maxRequestChunk))
-
-    const actors = allActors.slice(0, sliceAt)
 
     const foundActors = new Set<string>()
 
@@ -51,7 +37,7 @@ class UserDetailsFetch extends CachedFetch {
               for (const did of actorsChunk) {
                 if (profilesMap[did]) {
                   this.results.set(did, {
-                    data: profilesMap[did],
+                    data: this.compressData(profilesMap[did]),
                     completedDate: Date.now(),
                     url: did,
                     failed: false,

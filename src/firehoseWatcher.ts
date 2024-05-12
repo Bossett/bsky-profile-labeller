@@ -1,6 +1,7 @@
 import FirehoseIterable from './lib/firehoseIterable/firehoseIterable.js'
 import logger from '@/helpers/logger.js'
 import wait from '@/helpers/wait.js'
+import formatNumber from '@/helpers/formatNumber.js'
 
 import formatDuration from '@/helpers/formatDuration.js'
 
@@ -27,6 +28,7 @@ export default async function firehoseWatcher() {
   const interval_ms = env.limits.DB_WRITE_INTERVAL_MS
   const stalled_at = env.limits.MIN_FIREHOSE_OPS
   let seenFirstCommit = false
+  let lastRss = 0
 
   const firstRun = Date.now()
 
@@ -90,24 +92,41 @@ export default async function firehoseWatcher() {
       const plcCacheStats = plcDirectoryCacheStats()
       const postCacheStats = postBatchCacheStats()
 
+      const thisRss = process.memoryUsage().rss
+
       const logLines = [
-        `${speed.toFixed(2)} ops/s, at seq: ${seq}`,
+        `${formatNumber(speed)} ops/s, at seq: ${seq}`,
         `${timeToRealtimeStr} with lag ${formatDuration(
           lag,
         )} (running ${formatDuration(Date.now() - firstRun)})`,
-        `${totalItems} items: ${itemsProcessed} processed, ${skippedItems} skipped `,
-        `details cache: ${detailsCacheStats.items()} items ${detailsCacheStats
-          .hitRate()
-          .toFixed(2)}% hit (${detailsCacheStats.recentExpired()} expired)`,
-        `author feed cache: ${authorFeedCacheStats.items()} items ${authorFeedCacheStats
-          .hitRate()
-          .toFixed(2)}% hit (${authorFeedCacheStats.recentExpired()} expired)`,
-        `plc directory cache: ${plcCacheStats.items()} items ${plcCacheStats
-          .hitRate()
-          .toFixed(2)}% hit (${plcCacheStats.recentExpired()} expired)`,
-        `post cache: ${postCacheStats.items()} items ${postCacheStats
-          .hitRate()
-          .toFixed(2)}% hit (${postCacheStats.recentExpired()} expired)`,
+        `${formatNumber(totalItems)} items: ${formatNumber(
+          itemsProcessed,
+        )} processed, ${formatNumber(skippedItems)} skipped `,
+        `details cache: ${formatNumber(
+          detailsCacheStats.items(),
+        )} items ${formatNumber(
+          detailsCacheStats.hitRate(),
+        )}% hit (${formatNumber(detailsCacheStats.recentExpired())} expired)`,
+        `author feed cache: ${formatNumber(
+          authorFeedCacheStats.items(),
+        )} items ${formatNumber(
+          authorFeedCacheStats.hitRate(),
+        )}% hit (${formatNumber(
+          authorFeedCacheStats.recentExpired(),
+        )} expired)`,
+        `plc directory cache: ${formatNumber(
+          plcCacheStats.items(),
+        )} items ${formatNumber(plcCacheStats.hitRate())}% hit (${formatNumber(
+          plcCacheStats.recentExpired(),
+        )} expired)`,
+        `post cache: ${formatNumber(
+          postCacheStats.items(),
+        )} items ${formatNumber(postCacheStats.hitRate())}% hit (${formatNumber(
+          postCacheStats.recentExpired(),
+        )} expired)`,
+        `${formatNumber(thisRss / 1024 / 1024)}MB used by process (${
+          thisRss > lastRss ? 'growing' : 'shrinking'
+        })`,
       ]
 
       for (const line of logLines) {
@@ -118,6 +137,8 @@ export default async function firehoseWatcher() {
       authorFeedCacheStats.reset()
       plcCacheStats.reset()
       postCacheStats.reset()
+
+      lastRss = thisRss
 
       await db
         .insert(schema.subscription_status)

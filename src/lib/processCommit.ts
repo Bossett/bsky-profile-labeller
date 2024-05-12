@@ -307,9 +307,30 @@ async function queueManager() {
         runningCommits.add(seq)
         commitsPromises.push(
           _processCommit(commit)
-            .then(() => runningCommits.delete(seq))
-            .catch(() => runningCommits.delete(seq))
-            .finally(() => runningCommits.delete(seq)),
+            .then(() => {
+              if (knownBadCommits.has(seq)) {
+                logger.debug(`commit (seq ${seq}) succeeded after retry`)
+                knownBadCommits.delete(seq)
+              }
+            })
+            .catch((e) => {
+              if (e.message === 'ProcessCommitTimeout') {
+                if (!knownBadCommits.has(seq)) {
+                  logger.debug(`${seq} timed out and will be retried`)
+                  processCommit(commit)
+                  // will know to fail it next time:
+                  knownBadCommits.add(seq)
+                } else {
+                  logger.warn(`commit (seq ${seq}) failed after retry`)
+                  knownBadCommits.delete(seq)
+                }
+              } else {
+                knownBadCommits.delete(seq)
+              }
+            })
+            .finally(() => {
+              runningCommits.delete(seq)
+            }),
         )
       }
 
@@ -324,7 +345,6 @@ async function queueManager() {
 export async function processCommit(commit: Commit): Promise<boolean> {
   const isValidCommit = validateCommit(commit)
   if (!(isValidCommit.did && isValidCommit.seq)) return false
-  if (knownBadCommits.has(isValidCommit.seq)) return false
 
   while (processQueue.length >= taskBuffer) {
     await wait(10)

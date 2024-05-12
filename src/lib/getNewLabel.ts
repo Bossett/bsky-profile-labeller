@@ -158,7 +158,7 @@ export async function getNewLabel({
 
         if (record) {
           if (record.reply) hasSeenReply = true
-          else if (record.text) hasSeenTopLevel = true
+          else hasSeenTopLevel = true
         }
       }
 
