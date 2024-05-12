@@ -211,7 +211,7 @@ export function _processCommit(commit: Commit): Promise<void> {
           ...(operations.remove ? operations.remove : []),
         ]
       })
-
+      // anything in this list 'refreshed' when it re-triggers
       const handlesToReapply = ['newhandle']
 
       labelOperations.create = labelOperations.create.filter((label) => {
