@@ -30,16 +30,21 @@ export default async function emitAccountReport(
       e.message === 'Error: TypeError: fetch failed'
     )
       return false
-    logger.warn(`${e} from emitAccountReport attempting re-auth`)
-    if (isRetry) return false
+
+    if (isRetry) {
+      logger.warn(`${e.message} from emitAccountReport failed after re-auth`)
+      return false
+    }
 
     try {
       await reauth(agent)
     } catch (e) {
+      logger.warn(
+        `${e.message} from emitAccountReport failed attempting re-auth`,
+      )
       throw e
     }
-
-    return false
+    return emitAccountReport(eventInput, true)
   }
   return true
 }
