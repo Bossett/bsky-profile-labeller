@@ -30,6 +30,8 @@ export default async function firehoseWatcher() {
   let seenFirstCommit = false
   let lastRss = 0
 
+  let isInitialising = true
+
   const firstRun = Date.now()
 
   let willRestartOnUnpause = false
@@ -69,16 +71,19 @@ export default async function firehoseWatcher() {
           timeToRealtimeStr = `${formatDuration(timeToRealtime)} to catch up`
         }
         isSlowingDown = false
+        isInitialising = false
       } else {
         if (cycleCount > 3) {
           timeToRealtimeStr = `not catching up`
           isSlowingDown = true
+          isInitialising = false
         }
       }
 
       if (lag < 60000) {
         isSlowingDown = false
         timeToRealtimeStr = `real time`
+        isInitialising = false
       }
 
       if (lag < 15 * 60 * 1000) {
@@ -160,18 +165,19 @@ export default async function firehoseWatcher() {
 
       lastRss = thisRss
 
-      await db
-        .insert(schema.subscription_status)
-        .values({
-          id: 1,
-          last_sequence: seq,
-        })
-        .onConflictDoUpdate({
-          target: schema.subscription_status.id,
-          set: {
+      if (!isInitialising)
+        await db
+          .insert(schema.subscription_status)
+          .values({
+            id: 1,
             last_sequence: seq,
-          },
-        })
+          })
+          .onConflictDoUpdate({
+            target: schema.subscription_status.id,
+            set: {
+              last_sequence: seq,
+            },
+          })
 
       if (speed < stalled_at && isSlowingDown) {
         logger.error(`firehose stalled at ${speed} ops/s`)

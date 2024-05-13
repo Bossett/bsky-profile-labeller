@@ -6,14 +6,14 @@ import logger from '@/helpers/logger.js'
 
 class PostFetch extends CachedFetch {
   protected async executeBatch() {
-    const maxRequestChunk = 30
+    const maxRequestChunk = 25
 
     const getPosts = (posts: string[]) => {
-      const postQueryString = 'uris=' + posts.join('&uris=')
+      const postQueryString = posts.join('&uris=')
       return publicLimit(async () => {
         try {
           const res = await fetch(
-            `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts?` +
+            `${env.PUBLIC_SERVICE}/xrpc/app.bsky.feed.getPosts?uris=` +
               postQueryString,
           )
           return await res.json()
@@ -34,9 +34,10 @@ class PostFetch extends CachedFetch {
 
     const foundPosts = new Set<string>()
 
+    const itemsToRemove = new Set<string>()
+    const resPromises: Promise<any>[] = []
     try {
       for (let i = 0; i < postURLs.length; i += maxRequestChunk) {
-        const resPromises: Promise<any>[] = []
         const postsChunk = postURLs.slice(i, i + maxRequestChunk)
         resPromises.push(
           getPosts(postsChunk)
@@ -60,16 +61,22 @@ class PostFetch extends CachedFetch {
             })
             .catch((e) => {
               for (const url of postsChunk) {
-                const idxToRemove = postURLs.indexOf(url)
-                postURLs.splice(idxToRemove, 1)
+                itemsToRemove.add(url)
               }
             }),
         )
-        await Promise.allSettled(resPromises)
       }
     } catch (e) {
       return true
     }
+
+    await Promise.allSettled(resPromises)
+
+    for (const url of itemsToRemove.keys()) {
+      while (postURLs.splice(postURLs.indexOf(url), 1).length > 0) {}
+    }
+
+    itemsToRemove.clear()
 
     for (const url of postURLs) {
       if (!foundPosts.has(url)) {
