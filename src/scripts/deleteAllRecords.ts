@@ -21,7 +21,7 @@ const listItems: { uri: string; cid: string; value: unknown }[] = []
 
 do {
   const res = await fetchCachedList.getJson(`${list}&cursor=${cursor}`)
-  listItems.push(...res.records)
+  if (res.records) listItems.push(...res.records)
   cursor = res.cursor
 } while (cursor)
 
@@ -31,9 +31,10 @@ const postUriRegex =
   /at:\/\/(did:[^:]+:[^\/]+)\/app\.bsky\.graph\.listitem\/([^\/]+)/
 
 for (const listItem of listItems) {
-  const match = listItem.uri.match(postUriRegex)
-  if (!match) continue
-  const [_, _did, rkey] = match
+  const matchUri = listItem.uri.match(postUriRegex)
+  if (!matchUri) continue
+
+  const [_, _did, rkey] = matchUri
 
   const res = await deleteLimit(() => {
     return agent.com.atproto.repo.deleteRecord({

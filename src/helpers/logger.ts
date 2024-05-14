@@ -11,7 +11,7 @@ const logger = winston.createLogger({
           label: '[firehose-iterable]',
         }),
         winston.format.timestamp({
-          format: 'YYYY-MM-DDTHH:mm:ss',
+          format: () => new Date().toISOString(),
         }),
         winston.format.printf(
           (info) => `${info.timestamp} ${info.level}: ${info.message}`,

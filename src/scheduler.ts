@@ -1,6 +1,6 @@
 import wait from '@/helpers/wait.js'
 import logger from '@/helpers/logger.js'
-import lists, {
+import {
   getAllPending,
   updateListItemURLs,
   updateLists,
@@ -14,7 +14,7 @@ export default async function scheduler() {
     await updateLists()
     await processListChanges()
     logger.debug('scheduler waiting...')
-  } while (await wait(60 * 1000))
+  } while (await wait(env.limits.MIN_SCHEDULE_INTERVAL))
 }
 
 async function processListChanges() {

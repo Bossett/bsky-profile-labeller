@@ -13,7 +13,7 @@ const limits = {
   // rate limiter for delete request
   DELETE_LIMIT_MAX_CONCURRENT: 16,
   DELETE_LIMIT_MAX_DELAY_MS: 3000,
-  DELETE_LIMIT_MAX_RATE: 3000,
+  DELETE_LIMIT_MAX_RATE: 2500,
   DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
   PLC_LIMIT_MAX_CONCURRENT: 256,
@@ -48,6 +48,7 @@ const limits = {
   POST_CACHE_MAX_SIZE: 20000,
   MIN_BATCH_WAIT_TIME_MS: 100,
   BATCH_CYCLE_TIMEOUT_MS: 3 * 60 * 1000,
+  MIN_SCHEDULE_INTERVAL: 5 * 60 * 1000,
 }
 
 const validateLimits = {
