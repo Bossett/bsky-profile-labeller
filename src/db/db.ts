@@ -21,4 +21,12 @@ const db = drizzle(queryClient, { schema: schema })
 export default db
 
 export * as schema from '@/db/schema.js'
-export { eq, lte, isNull, isNotNull, and, inArray } from 'drizzle-orm'
+export {
+  eq,
+  lte,
+  isNull,
+  isNotNull,
+  and,
+  inArray,
+  notInArray,
+} from 'drizzle-orm'

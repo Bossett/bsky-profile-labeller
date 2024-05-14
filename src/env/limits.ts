@@ -8,8 +8,13 @@ const limits = {
   // rate limiter for authed request
   PDS_LIMIT_MAX_CONCURRENT: 128,
   PDS_LIMIT_MAX_DELAY_MS: 3000,
-  PDS_LIMIT_MAX_RATE: 2_500,
+  PDS_LIMIT_MAX_RATE: 1_500,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
+  // rate limiter for delete request
+  DELETE_LIMIT_MAX_CONCURRENT: 16,
+  DELETE_LIMIT_MAX_DELAY_MS: 3000,
+  DELETE_LIMIT_MAX_RATE: 3000,
+  DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
   PLC_LIMIT_MAX_CONCURRENT: 256,
   PLC_LIMIT_MAX_DELAY_MS: undefined,

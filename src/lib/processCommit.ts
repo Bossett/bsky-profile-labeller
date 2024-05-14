@@ -211,6 +211,9 @@ export function _processCommit(commit: Commit): Promise<void> {
           ...(operations.remove ? operations.remove : []),
         ]
       })
+
+      insertListItemOperation(did, labelOperations)
+
       // anything in this list 'refreshed' when it re-triggers
       const handlesToReapply = ['newhandle']
 
@@ -265,8 +268,6 @@ export function _processCommit(commit: Commit): Promise<void> {
       ) {
         await insertOperations(operations)
       }
-
-      insertListItemOperation(did, labelOperations)
 
       clearTimeout(failTimeout)
       resolve()

@@ -15,6 +15,13 @@ export const pdsLimit = pRateLimit({
   maxDelay: env.limits.PDS_LIMIT_MAX_DELAY_MS,
 })
 
+export const deleteLimit = pRateLimit({
+  interval: env.limits.DELETE_LIMIT_RATE_INTERVAL_MS,
+  rate: env.limits.DELETE_LIMIT_MAX_RATE,
+  concurrency: env.limits.DELETE_LIMIT_MAX_CONCURRENT,
+  maxDelay: env.limits.DELETE_LIMIT_MAX_DELAY_MS,
+})
+
 export const publicLimit = pRateLimit({
   interval: env.limits.PUBLIC_LIMIT_RATE_INTERVAL_MS,
   rate: env.limits.PUBLIC_LIMIT_MAX_RATE,
