@@ -14,7 +14,7 @@ export async function getProfileLabel(
 
   const pds = await getPlcPDS(profile.did)
 
-  if (pds === 'https://atproto.brid.gy') {
+  if (pds && new URL(pds).hostname === 'atproto.brid.gy') {
     operations.create.push('bridgy')
     if (
       profile.handle.toLowerCase().match(/^npub[0-9a-z]{59}\.[a-z\.]+$/) !==
