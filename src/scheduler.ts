@@ -19,15 +19,15 @@ export default async function scheduler() {
   do {
     const started = Date.now()
     await updateLists()
-    const { creates, removals, total } = await processListChanges()
+    const { creates, removals, cleared } = await processListChanges()
 
     logger.info(
       `scheduler completed in ${formatDuration(Date.now() - started)}`,
     )
 
-    if (creates + removals + total > 0) {
+    if (creates + removals + cleared > 0) {
       logger.info(
-        `${creates} creates, ${removals} removals, ${total} total changes`,
+        `${creates} creates, ${removals} removals, ${cleared} stale records removed`,
       )
     }
 
@@ -98,8 +98,6 @@ async function processListChanges() {
   const postUriRegex =
     /at:\/\/(did:[^:]+:[^\/]+)\/app\.bsky\.graph\.listitem\/([^\/]+)/
 
-  console.log(pendingListChanges.removals)
-
   for (const listUrl of Object.keys(pendingListChanges.removals)) {
     for (const did of Object.keys(pendingListChanges.removals[listUrl])) {
       try {
@@ -128,7 +126,7 @@ async function processListChanges() {
             allItems.push({
               id,
               listItemURL: null,
-              listURLId: pendingListChanges.creates[listUrl][did].listURLId,
+              listURLId: pendingListChanges.removals[listUrl][did].listURLId,
               did: did,
             })
           })
@@ -144,5 +142,9 @@ async function processListChanges() {
   }
 
   const itemsUpdated = await updateListItemURLs(allItems)
-  return { creates: creates, removals: removals, total: itemsUpdated }
+  return {
+    creates: creates,
+    removals: removals,
+    cleared: itemsUpdated - (creates + removals),
+  }
 }
