@@ -1,18 +1,13 @@
-import db, {
-  schema,
-  isNotNull,
-  and,
-  lte,
-  isNull,
-  eq,
-  inArray,
-} from '@/db/db.js'
+import db, { schema, isNotNull, and, lte, isNull } from '@/db/db.js'
+import { sql } from 'drizzle-orm'
 
 interface listOperations {
   [listUrl: string]: {
     [did: string]: {
       ids: number[]
       listItemURL: string | null
+      did: string
+      listURLId: number
     }
   }
 }
@@ -94,6 +89,7 @@ async function getPendingCreates(): Promise<listOperations> {
         id: create.id,
         did: create.did,
         listURL: listUrlFromId(create.listURLId),
+        listURLId: create.listURLId,
         listItemURL: create.listItemURL,
       }
     })
@@ -103,12 +99,14 @@ async function getPendingCreates(): Promise<listOperations> {
         acc[create.listURL][create.did] = {
           ids: [],
           listItemURL: create.listItemURL,
+          listURLId: create.listURLId,
+          did: create.did,
         }
 
       acc[create.listURL][create.did].ids.push(create.id)
 
       return acc
-    }, {} as { [listUrl: string]: { [did: string]: { ids: number[]; listItemURL: string | null } } })
+    }, {} as { [listUrl: string]: { [did: string]: { ids: number[]; listItemURL: string | null; listURLId: number; did: string } } })
 }
 
 async function getPendingRemoval(): Promise<listOperations> {
@@ -132,6 +130,7 @@ async function getPendingRemoval(): Promise<listOperations> {
         id: remove.id,
         did: remove.did,
         listURL: listUrlFromId(remove.listURLId),
+        listURLId: remove.listURLId,
         listItemURL: remove.listItemURL,
       }
     })
@@ -141,35 +140,55 @@ async function getPendingRemoval(): Promise<listOperations> {
         acc[remove.listURL][remove.did] = {
           ids: [],
           listItemURL: remove.listItemURL,
+          listURLId: remove.listURLId,
+          did: remove.did,
         }
 
       acc[remove.listURL][remove.did].ids.push(remove.id)
 
       return acc
-    }, {} as { [listUrl: string]: { [did: string]: { ids: number[]; listItemURL: string | null } } })
+    }, {} as { [listUrl: string]: { [did: string]: { ids: number[]; listItemURL: string | null; listURLId: number; did: string } } })
 }
 
 export async function updateListItemURLs(
-  groupedItems: { listItemURL: string | null; ids: number[] }[],
+  items: {
+    id: number
+    listItemURL: string | null
+    did: string
+    listURLId: number
+  }[],
 ) {
+  if (items.length === 0) return 0
   const updatedIds: { updatedId: number }[] = []
   await db.transaction(async (tx) => {
-    for (const { listItemURL, ids } of groupedItems) {
-      updatedIds.push(
-        ...(await tx
-          .update(schema.listItems)
-          .set({
-            listItemURL: listItemURL,
-          })
-          .where(inArray(schema.listItems.id, ids))
-          .returning({ updatedId: schema.listItems.id })),
-      )
-    }
-    tx.delete(schema.listItems).where(
-      and(
-        lte(schema.listItems.unixtimeDeleted, Math.floor(Date.now() / 1000)),
-        isNull(schema.listItems.listItemURL),
-      ),
+    updatedIds.push(
+      ...(await tx
+        .insert(schema.listItems)
+        .values(items)
+        .onConflictDoUpdate({
+          target: [schema.listItems.did, schema.listItems.listURLId],
+          set: {
+            listItemURL: sql.raw(
+              `excluded."${schema.listItems.listItemURL.name}"`,
+            ),
+          },
+        })
+        .returning({ updatedId: schema.listItems.id })),
+    )
+
+    updatedIds.push(
+      ...(await tx
+        .delete(schema.listItems)
+        .where(
+          and(
+            lte(
+              schema.listItems.unixtimeDeleted,
+              Math.floor(Date.now() / 1000),
+            ),
+            isNull(schema.listItems.listItemURL),
+          ),
+        )
+        .returning({ updatedId: schema.listItems.id })),
     )
   })
 
