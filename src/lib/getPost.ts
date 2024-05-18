@@ -95,8 +95,8 @@ class PostFetch extends CachedFetch {
 }
 
 const postFetch = new PostFetch({
-  maxAge: env.limits.POST_CACHE_MAX_SIZE,
-  maxSize: env.limits.POST_CACHE_MAX_AGE_MS,
+  maxAge: env.limits.POST_CACHE_MAX_AGE_MS,
+  maxSize: env.limits.POST_CACHE_MAX_SIZE,
 })
 
 async function getPost(
