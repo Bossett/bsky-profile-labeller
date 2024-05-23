@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "did_idx" ON "listItems" ("did");

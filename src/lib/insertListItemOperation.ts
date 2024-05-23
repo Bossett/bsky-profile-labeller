@@ -32,32 +32,55 @@ async function syncListChangeToDb(did: string, currentLabels: Set<string>) {
 
   const allValidIds = new Set<number>([0])
 
-  await db.transaction(async (tx) => {
-    if (valueMap.length > 0) {
-      const validIds = await tx
-        .insert(schema.listItems)
-        .values(valueMap)
-        .returning({
-          id: schema.listItems.id,
-        })
-        .onConflictDoUpdate({
-          target: [schema.listItems.did, schema.listItems.listURLId],
-          set: { unixtimeDeleted: null },
-        })
+  const checkExisting = await db
+    .select({
+      did: schema.listItems.did,
+      listURLId: schema.listItems.listURLId,
+      unixtimeDeleted: schema.listItems.unixtimeDeleted,
+    })
+    .from(schema.listItems)
+    .where(eq(schema.listItems.did, did))
 
-      validIds.forEach(({ id }) => allValidIds.add(id))
-    }
+  const isValueMapAndExistingEqual =
+    valueMap.length === checkExisting.length &&
+    valueMap.every(
+      (value) =>
+        checkExisting.find(
+          (existing) =>
+            existing.did === value.did &&
+            existing.listURLId === value.listURLId &&
+            existing.unixtimeDeleted === value.unixtimeDeleted,
+        ) !== undefined,
+    )
 
-    await tx
-      .update(schema.listItems)
-      .set({
-        unixtimeDeleted: unixNow,
-      })
-      .where(
-        and(
-          eq(schema.listItems.did, did),
-          notInArray(schema.listItems.id, Array.from(allValidIds)),
-        ),
-      )
-  })
+  if (!isValueMapAndExistingEqual) {
+    await db.transaction(async (tx) => {
+      if (valueMap.length > 0) {
+        const validIds = await tx
+          .insert(schema.listItems)
+          .values(valueMap)
+          .returning({
+            id: schema.listItems.id,
+          })
+          .onConflictDoUpdate({
+            target: [schema.listItems.did, schema.listItems.listURLId],
+            set: { unixtimeDeleted: null },
+          })
+
+        validIds.forEach(({ id }) => allValidIds.add(id))
+      }
+
+      await tx
+        .update(schema.listItems)
+        .set({
+          unixtimeDeleted: unixNow,
+        })
+        .where(
+          and(
+            eq(schema.listItems.did, did),
+            notInArray(schema.listItems.id, Array.from(allValidIds)),
+          ),
+        )
+    })
+  }
 }

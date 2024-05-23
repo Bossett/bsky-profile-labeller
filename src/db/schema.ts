@@ -1,4 +1,11 @@
-import { primaryKey, integer, pgTable, serial, text } from 'drizzle-orm/pg-core'
+import {
+  primaryKey,
+  integer,
+  pgTable,
+  serial,
+  text,
+  index,
+} from 'drizzle-orm/pg-core'
 
 export const label_actions = pgTable('label_actions', {
   id: serial('id').primaryKey(),
@@ -32,6 +39,10 @@ export const listItems = pgTable(
     unixtimeDeleted: integer('unixtimeDeleted'),
   },
   (table) => {
-    return { pk: primaryKey({ columns: [table.did, table.listURLId] }) }
+    return {
+      pk: primaryKey({ columns: [table.did, table.listURLId] }),
+      didIdx: index('did_idx').on(table.did),
+      idIdx: index('id_idx').on(table.id),
+    }
   },
 )
