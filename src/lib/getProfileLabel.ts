@@ -2,6 +2,7 @@ import { AppBskyActorDefs, ComAtprotoLabelDefs } from '@atproto/api'
 
 import { OperationsResult } from '@/lib/insertOperations.js'
 import { getPlcPDS } from '@/lib/getPlcRecord.js'
+import { boolean } from 'drizzle-orm/mysql-core'
 
 export async function getProfileLabel(
   profile: AppBskyActorDefs.ProfileViewDetailed,
@@ -16,17 +17,24 @@ export async function getProfileLabel(
 
   if (pds && new URL(pds).hostname === 'atproto.brid.gy') {
     operations.create.push('bridgy')
-    if (
+
+    const isNostr: boolean =
       profile.handle.toLowerCase().match(/^npub[0-9a-z]{59}\.[a-z\.]+$/) !==
       null
-    ) {
-      operations.create.push('nostr')
-    } else {
-      operations.remove.push('nostr')
-    }
+
+    if (isNostr) operations.create.push('nostr')
+    else operations.remove.push('nostr')
+
+    const isThreads: boolean =
+      profile.handle.toLowerCase().match(/\.threads\.net\.ap\.brid\.gy$/) !==
+      null
+
+    if (isThreads) operations.create.push('threads')
+    else operations.remove.push('threads')
   } else {
     operations.remove.push('bridgy')
     operations.remove.push('nostr')
+    operations.remove.push('threads')
   }
 
   if (!profile.did.startsWith('did:plc:')) {
