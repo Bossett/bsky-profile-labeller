@@ -37,7 +37,7 @@ const limits = {
   MAX_PENDING_INSERTS_WAIT_MS: 30 * 1000, // the maximum amount of time between inserting pending label events
   MAX_PENDING_INSERTS: 64, // the maximum number of label pending events before writing to the db
   MAX_PROCESSING_TIME_MS: 2 * 60 * 1000, // the maximum time any given commit can take to process
-  REGULAR_POST_STDEV_MS: 6 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
+  REGULAR_POST_STDEV_MS: 12 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 30 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
   USER_DETAILS_MAX_SIZE: 15000,
   AUTHOR_FEED_MAX_AGE_MS: 30 * 60 * 1000, // as above for author feed, resets on post
