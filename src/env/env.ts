@@ -6,7 +6,7 @@ const envSchema = z.object({
   LABELLER_HANDLE: z.string(),
   LABELLER_PASSWORD: z.string(),
   LABELLER_SERVICE: z.string().url().default('https://bsky.social'),
-  PUBLIC_SERVICE: z.string().url().default('https://public.api.bsky.app'),
+  PUBLIC_SERVICE: z.string().url().default('https://api.bsky.app'),
   PLC_DIRECTORY: z.string().url().default('https://plc.directory'),
   NEON_DATABASE_URL: z.string().url(),
   NEWHANDLE_EXPIRY: z.coerce.number().default(2592000),

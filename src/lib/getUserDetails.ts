@@ -1,6 +1,6 @@
 import { AppBskyActorDefs } from '@atproto/api'
-import { pdsLimit } from '@/env/rateLimit.js'
-import { agent } from '@/lib/bskyAgent.js'
+import { publicLimit } from '@/env/rateLimit.js'
+import { agentDid } from '@/lib/bskyAgent.js'
 import env from '@/env/env.js'
 import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
@@ -8,8 +8,26 @@ import CachedFetch from '@/lib/CachedFetch.js'
 class UserDetailsFetch extends CachedFetch {
   protected async executeBatch() {
     const maxRequestChunk = this.maxBatch
-    const getProfiles = (actors: string[]) =>
-      pdsLimit(() => agent.app.bsky.actor.getProfiles({ actors: actors }))
+
+    const getProfiles = (actors: string[]) => {
+      const actorsQueryString = actors.join('&actors=')
+      return publicLimit(async () => {
+        try {
+          const res = await fetch(
+            `${env.PUBLIC_SERVICE}/xrpc/app.bsky.actor.getProfiles?actors=` +
+              actorsQueryString,
+            {
+              headers: {
+                'atproto-accept-labelers': agentDid,
+              },
+            },
+          )
+          return await res.json()
+        } catch (e) {
+          return { profiles: [] }
+        }
+      }) as Promise<{ profiles: [AppBskyActorDefs.ProfileViewDetailed] }>
+    }
 
     const batchDids = Array.from(this.results.keys()).sort()
 
@@ -30,7 +48,7 @@ class UserDetailsFetch extends CachedFetch {
         resPromises.push(
           getProfiles(actorsChunk)
             .then((profiles) => {
-              const profilesMap = profiles.data.profiles.reduce(
+              const profilesMap = profiles.profiles.reduce(
                 (map, profile) => ({ ...map, [profile.did]: profile }),
                 {},
               )
