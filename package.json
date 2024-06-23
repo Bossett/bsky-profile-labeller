@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@atproto/api": "^0.12.7",
+    "@atproto/api": "^0.12.21",
     "@atproto/identity": "^0.4.0",
     "@atproto/lexicon": "^0.4.0",
     "@atproto/repo": "^0.4.0",

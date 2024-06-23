@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@atproto/api@^0.12.7":
-  version "0.12.7"
-  resolved "https://registry.yarnpkg.com/@atproto/api/-/api-0.12.7.tgz#dace57dd8464866797ac718f7dcde350e56e653d"
-  integrity sha512-WHPX+rO8K24Mb3gMofUz7v8GLtTrVUzq9ZfUOxqP/tqDIlYPWEWc5ess6B8joIP0jYLZCyYakLV6giinXjpE6Q==
+"@atproto/api@^0.12.21":
+  version "0.12.21"
+  resolved "https://registry.yarnpkg.com/@atproto/api/-/api-0.12.21.tgz#3226eb7883415930b421f92010eae50c5a44992d"
+  integrity sha512-OBvVGLkbp4qGrQR4GzZV0psagK+6CpncWAsVCDl0kTUI3dEdUDVV3jJN3QxxNIEtGF76DUpx7COP5FAWdLgJ+Q==
   dependencies:
     "@atproto/common-web" "^0.3.0"
     "@atproto/lexicon" "^0.4.0"
@@ -2102,9 +2102,9 @@ timers-ext@^0.1.7:
     next-tick "1"
 
 tlds@^1.234.0:
-  version "1.252.0"
-  resolved "https://registry.yarnpkg.com/tlds/-/tlds-1.252.0.tgz#71d9617f4ef4cc7347843bee72428e71b8b0f419"
-  integrity sha512-GA16+8HXvqtfEnw/DTcwB0UU354QE1n3+wh08oFjr6Znl7ZLAeUgYzCcK+/CCrOyE0vnHR8/pu3XXG3vDijXpQ==
+  version "1.253.0"
+  resolved "https://registry.yarnpkg.com/tlds/-/tlds-1.253.0.tgz#52c7f0ac422758c5036658b9483adba888dd4f00"
+  integrity sha512-lNov5nt5/xw6nK00gtoQSA2I4HcpAnot1TMJccTNw2rtL5jdLN26h3f+mT8VF4JBv5/rBNXyuUPWcogceyKJJw==
 
 to-regex-range@^5.0.1:
   version "5.0.1"
@@ -2256,12 +2256,12 @@ yallist@^4.0.0:
   resolved "https://registry.yarnpkg.com/yallist/-/yallist-4.0.0.tgz#9bb92790d9c0effec63be73519e11a35019a3a72"
   integrity sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==
 
-zod@^3.14.2:
+zod@^3.14.2, zod@^3.21.4:
   version "3.23.8"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.8.tgz#e37b957b5d52079769fb8097099b592f0ef4067d"
   integrity sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==
 
-zod@^3.20.2, zod@^3.21.4:
+zod@^3.20.2:
   version "3.23.4"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.23.4.tgz#c63805b2f39e10d4ab3d55eb3c8cdb472c79dfb1"
   integrity sha512-/AtWOKbBgjzEYYQRNfoGKHObgfAZag6qUJX1VbHo2PRBgS+wfWagEY2mizjfyAPcGesrJOcx/wcl0L9WnVrHFw==
