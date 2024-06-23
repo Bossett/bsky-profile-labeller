@@ -71,7 +71,11 @@ async function getPlcHandleHistory(did: string) {
       op.operation.type === 'plc_operation' &&
       op.operation?.alsoKnownAs.length > 0
     ) {
-      const handle = op.operation.alsoKnownAs[0]?.split('at://')[1]
+      const alsoKnownAs = op.operation.alsoKnownAs.filter((value) =>
+        value.startsWith('at://'),
+      )
+
+      const handle = alsoKnownAs[0]?.split('at://')[1]
       const createdAt = new Date(op.createdAt)
 
       if (handle !== previousHandle) {
