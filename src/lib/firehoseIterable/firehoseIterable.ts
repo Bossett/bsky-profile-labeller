@@ -29,7 +29,7 @@ export default class FirehoseIterable {
   } = {}) {
     this.service = service || 'wss://bsky.network'
     this.timeout = timeout || 10000
-    this.maxPending = maxPending || 5000
+    this.maxPending = maxPending || 10000
 
     if (seq && Number.isSafeInteger(seq)) this.seq = seq
     else this.seq = 0

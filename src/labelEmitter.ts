@@ -8,6 +8,7 @@ import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 
 import db, { schema, lte, inArray } from '@/db/db.js'
 import { purgeCacheForDid } from './lib/getUserDetails.js'
+import env from '@/env/env.js'
 
 export default async function labelEmitter() {
   do {
@@ -25,7 +26,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
-      limit: 2560,
+      limit: env.limits.PDS_LIMIT_MAX_CONCURRENT * 5,
     })
 
     if (events.length === 0) continue
