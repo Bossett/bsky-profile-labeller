@@ -38,12 +38,12 @@ export default async function labelEmitter() {
     >()
 
     const groupedEvents = events.reduce((accumulatedEvents, event) => {
-      if (!accumulatedEvents[event.did]) {
+      if (!accumulatedEvents.has(event.did)) {
         const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
           event: {
             $type: 'tools.ozone.moderation.defs#modEventLabel',
-            createLabelVals: [] as string[],
-            negateLabelVals: [] as string[],
+            createLabelVals: new Set<string>(),
+            negateLabelVals: new Set<string>(),
             comment: '',
           },
           subject: {
@@ -52,50 +52,22 @@ export default async function labelEmitter() {
           },
           createdBy: agentDid,
         }
-        const eventIds: number[] = []
-        const timestamp: number = Date.now()
-
-        accumulatedEvents[event.did] = {
+        accumulatedEvents.set(event.did, {
           eventInput: eventInput,
-          eventIds: eventIds,
-          timestamp: timestamp,
-        }
+          eventIds: [],
+          timestamp: Date.now(),
+        })
       }
 
-      const inNegate: number = (
-        accumulatedEvents[event.did].eventInput.event
-          .negateLabelVals as string[]
-      ).findIndex((item) => item === event.label)
-      const inCreate: number = (
-        accumulatedEvents[event.did].eventInput.event
-          .createLabelVals as string[]
-      ).findIndex((item) => item === event.label)
+      const currentEvent = accumulatedEvents.get(event.did)
 
       if (event.action === 'create') {
-        if (inNegate !== -1) {
-          accumulatedEvents[event.did].eventInput.event.negateLabelVals.splice(
-            inNegate,
-            1,
-          )
-        }
-        if (inCreate === -1) {
-          accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
-            event.label,
-          )
-        }
+        currentEvent.eventInput.event.negateLabelVals.delete(event.label)
+        currentEvent.eventInput.event.createLabelVals.add(event.label)
       }
       if (event.action === 'remove') {
-        if (inCreate !== -1) {
-          accumulatedEvents[event.did].eventInput.event.createLabelVals.splice(
-            inCreate,
-            1,
-          )
-        }
-        if (inNegate === -1) {
-          accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
-            event.label,
-          )
-        }
+        currentEvent.eventInput.event.createLabelVals.delete(event.label)
+        currentEvent.eventInput.event.negateLabelVals.add(event.label)
       }
 
       eventLog[event.label]
@@ -103,42 +75,49 @@ export default async function labelEmitter() {
         : (eventLog[event.label] = 1)
 
       const joinedComments = [
-        ...(accumulatedEvents[event.did].eventInput.event.comment
-          ? [accumulatedEvents[event.did].eventInput.event.comment]
-          : []),
-        ...(event.comment ? [event.comment] : []),
-      ].join(', ')
+        currentEvent.eventInput.event.comment,
+        event.comment,
+      ]
+        .filter(Boolean)
+        .join(', ')
 
-      accumulatedEvents[event.did].eventInput.event.comment = joinedComments
-
-      accumulatedEvents[event.did].timestamp = event.unixtimescheduled
+      currentEvent.eventInput.event.comment = joinedComments
+      currentEvent.timestamp = event.unixtimescheduled
         ? event.unixtimescheduled * 1000
         : Date.now()
-
-      accumulatedEvents[event.did].eventIds.push(event.id)
+      currentEvent.eventIds.push(event.id)
 
       totalEvents++
 
       return accumulatedEvents
-    }, {})
+    }, new Map())
+
+    for (const [, value] of groupedEvents) {
+      value.eventInput.event.createLabelVals = Array.from(
+        value.eventInput.event.createLabelVals,
+      )
+      value.eventInput.event.negateLabelVals = Array.from(
+        value.eventInput.event.negateLabelVals,
+      )
+    }
 
     const eventPromises: Promise<void>[] = []
 
-    for (const didForEvent of Object.keys(groupedEvents)) {
+    for (const didForEvent of [...groupedEvents.keys()]) {
       const fn = async () => {
         const did = `${didForEvent}`
 
-        groupedEvents[did].eventInput.event.comment = `${
-          groupedEvents[did].eventInput.event.comment
-        } seen at: ${new Date(
-          groupedEvents[did].timestamp,
-        ).toISOString()}`.trim()
+        const groupedEvent = groupedEvents.get(did)
 
-        if (await emitAccountReport(groupedEvents[did].eventInput)) {
-          groupedEvents[did].eventIds.forEach((id: number) => {
+        groupedEvent.eventInput.event.comment = `${
+          groupedEvent.eventInput.event.comment
+        } seen at: ${new Date(groupedEvent.timestamp).toISOString()}`.trim()
+
+        if (await emitAccountReport(groupedEvent.eventInput)) {
+          groupedEvent.eventIds.forEach((id: number) => {
             completedEvents.add(id)
           })
-          purgeCacheForDid(did, groupedEvents[did].timestamp + 1000)
+          purgeCacheForDid(did, groupedEvent.timestamp + 1000)
         }
         return
       }
@@ -149,7 +128,7 @@ export default async function labelEmitter() {
 
     logger.debug(
       `grouped events: ${totalEvents} events into ${
-        Object.keys(groupedEvents).length
+        [...groupedEvents.keys()].length
       } groups`,
     )
 
@@ -160,7 +139,7 @@ export default async function labelEmitter() {
         .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
 
       let outputString = `emitted ${completedEvents.size} labels in ${
-        Object.keys(groupedEvents).length
+        [...groupedEvents.keys()].length
       } events:`
       const labelsOut: string[] = []
 
