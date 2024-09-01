@@ -7,10 +7,12 @@ const _agent = new BskyAgent({ service: env.LABELLER_SERVICE })
 
 const _reauth = async (agent: BskyAgent) => {
   try {
-    agent.login({
-      identifier: env.LABELLER_HANDLE,
-      password: env.LABELLER_PASSWORD,
-    })
+    await authLimit(() =>
+      agent.login({
+        identifier: env.LABELLER_HANDLE,
+        password: env.LABELLER_PASSWORD,
+      }),
+    )
   } catch (e) {
     return false
   }

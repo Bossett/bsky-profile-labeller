@@ -41,7 +41,7 @@
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:update": "yarn db:generate && yarn db:migrate",
     "build": "tsc && tsc-alias && node ./dist/env/limits.js",
-    "start": "node ./dist/app.js",
+    "start": "node --max-old-space-size=1500 ./dist/app.js",
     "dev": "tsx --env-file=.env src/app.ts",
     "validLimits": "tsx src/env/limits.ts",
     "deleteAllRecords": "tsx --env-file=.env src/scripts/deleteAllRecords.ts"

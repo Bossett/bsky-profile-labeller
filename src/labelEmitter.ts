@@ -16,7 +16,7 @@ export default async function labelEmitter() {
         schema.label_actions.unixtimescheduled,
         Math.floor(Date.now() / 1000),
       ),
-      orderBy: schema.label_actions.unixtimescheduled,
+      // orderBy: schema.label_actions.unixtimescheduled,
       columns: {
         label: true,
         did: true,
@@ -25,6 +25,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
+      limit: 2560,
     })
 
     if (events.length === 0) continue
@@ -169,5 +170,5 @@ export default async function labelEmitter() {
 
       logger.info(`${outputString} ${labelsOut.join(', ')}`)
     }
-  } while (await wait(5000))
+  } while (await wait(1000))
 }

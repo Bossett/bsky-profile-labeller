@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "time_idx" ON "label_actions" ("unixtimescheduled");

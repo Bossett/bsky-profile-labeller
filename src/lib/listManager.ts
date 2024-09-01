@@ -1,4 +1,5 @@
 import db, { schema, isNotNull, and, lte, isNull } from '@/db/db.js'
+import limits from '@/env/limits.js'
 import { sql } from 'drizzle-orm'
 
 interface listOperations {
@@ -81,6 +82,7 @@ async function getPendingCreates(): Promise<listOperations> {
       listURLId: true,
       listItemURL: true,
     },
+    limit: 64,
   })
 
   return pendingCreates
@@ -122,6 +124,7 @@ async function getPendingRemoval(): Promise<listOperations> {
       listURLId: true,
       listItemURL: true,
     },
+    limit: 64,
   })
 
   return pendingRemoval

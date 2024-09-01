@@ -7,14 +7,22 @@ import {
   index,
 } from 'drizzle-orm/pg-core'
 
-export const label_actions = pgTable('label_actions', {
-  id: serial('id').primaryKey(),
-  label: text('label').notNull(),
-  action: text('action').$type<'create' | 'remove'>().notNull(),
-  did: text('did').notNull(),
-  comment: text('comment'),
-  unixtimescheduled: integer('unixtimescheduled').default(0),
-})
+export const label_actions = pgTable(
+  'label_actions',
+  {
+    id: serial('id').primaryKey(),
+    label: text('label').notNull(),
+    action: text('action').$type<'create' | 'remove'>().notNull(),
+    did: text('did').notNull(),
+    comment: text('comment'),
+    unixtimescheduled: integer('unixtimescheduled').default(0),
+  },
+  (table) => {
+    return {
+      timeIndex: index('time_idx').on(table.unixtimescheduled),
+    }
+  },
+)
 
 export const subscription_status = pgTable('subscription_status', {
   id: serial('id').primaryKey(),
