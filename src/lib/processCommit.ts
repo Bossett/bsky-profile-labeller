@@ -71,6 +71,17 @@ export function _processCommit(commit: Commit): Promise<void> {
         return
       }
 
+      switch (commit.record['$type']) {
+        case 'app.bsky.feed.repost':
+        case 'app.bsky.graph.follow':
+        case 'app.bsky.feed.like':
+          clearTimeout(failTimeout)
+          return
+
+        default:
+          break
+      }
+
       failTimeout = setTimeout(() => {
         logger.debug(`${seq}: took too long, failing...`)
         reject(new Error(`ProcessCommitTimeout`))
@@ -143,12 +154,7 @@ export function _processCommit(commit: Commit): Promise<void> {
             }),
           )
           break
-        case 'app.bsky.feed.like':
-          break
-        case 'app.bsky.feed.repost':
-          break
-        case 'app.bsky.graph.follow':
-          break
+
         case 'app.bsky.actor.profile':
           break
 
