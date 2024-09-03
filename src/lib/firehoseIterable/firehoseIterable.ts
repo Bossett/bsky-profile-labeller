@@ -58,6 +58,16 @@ export default class FirehoseIterable {
 
   async readFirehose(sub: Subscription) {
     for await (const frame of sub) {
+      const commit = frame as Commit
+      if (Array.isArray(commit.ops)) {
+        for (const op of commit.ops) {
+          if (!this.ignoreTypes.has(op.path.split('/')[0])) {
+            this.commitQueue.push(commit)
+            break
+          }
+        }
+      }
+
       // prevent memory leak by keeping queue to ~5000
       // need to adjust to the best values to *just* keep the ws alive
 
@@ -79,20 +89,6 @@ export default class FirehoseIterable {
       while (waitTime >= maxWait && this.commitQueue.length >= maxQueue) {
         await wait(10)
       }
-
-      const commit = frame as Commit
-      let skip = false
-
-      if (Array.isArray(commit.ops)) {
-        for (const op of commit.ops) {
-          if (this.ignoreTypes.has(op.path.split('/')[0])) {
-            skip = true
-            break
-          }
-        }
-      }
-
-      if (!skip) this.commitQueue.push(commit)
     }
   }
 
