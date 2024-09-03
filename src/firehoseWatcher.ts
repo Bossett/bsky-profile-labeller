@@ -207,6 +207,7 @@ export default async function firehoseWatcher() {
           'app.bsky.feed.repost',
           'app.bsky.graph.follow',
           'app.bsky.feed.like',
+          'app.bsky.graph.listitem',
         ],
       })
 

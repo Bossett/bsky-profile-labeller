@@ -80,7 +80,19 @@ export default class FirehoseIterable {
         await wait(10)
       }
 
-      this.commitQueue.push(frame as Commit)
+      const commit = frame as Commit
+      let skip = false
+
+      if (Array.isArray(commit.ops)) {
+        for (const op of commit.ops) {
+          if (this.ignoreTypes.has(op.path.split('/')[0])) {
+            skip = true
+            break
+          }
+        }
+      }
+
+      if (!skip) this.commitQueue.push(commit)
     }
   }
 
@@ -95,19 +107,6 @@ export default class FirehoseIterable {
         if (commit === undefined) continue
 
         const now = Date.now()
-
-        let interestingCommit = true
-
-        if (Array.isArray(commit.ops)) {
-          for (const op of commit.ops) {
-            if (this.ignoreTypes.has(op.path.split('/')[0])) {
-              interestingCommit = false
-              break
-            }
-          }
-        }
-
-        if (!interestingCommit) continue
 
         if (!shouldWait && now - this.lastCommitTime > timeout) {
           logger.error(`no events received for ${Math.floor(timeout / 1000)}s`)
