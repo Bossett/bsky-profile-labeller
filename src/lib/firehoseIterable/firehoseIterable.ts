@@ -59,12 +59,11 @@ export default class FirehoseIterable {
   async readFirehose(sub: Subscription) {
     for await (const frame of sub) {
       const commit = frame as Commit
-      if (Array.isArray(commit.ops)) {
-        for (const op of commit.ops) {
-          if (!this.ignoreTypes.has(op.path.split('/')[0])) {
-            this.commitQueue.push(commit)
-            break
-          }
+      if (Array.isArray(commit.ops) && commit.ops.length > 0) {
+        const [collection] = commit.ops[0].path.split('/')
+
+        if (!this.ignoreTypes.has(collection)) {
+          this.commitQueue.push(commit)
         }
       }
 
