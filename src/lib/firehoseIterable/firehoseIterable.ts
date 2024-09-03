@@ -7,6 +7,7 @@ import { Commit } from '@atproto/api/dist/client/types/com/atproto/sync/subscrib
 import { Subscription } from '@atproto/xrpc-server'
 
 import { parseCBORandCar } from '@/lib/firehoseIterable/parseCBORandCar.js'
+import { record } from 'zod'
 
 export default class FirehoseIterable {
   private commitQueue: Denque<Commit> = new Denque()
@@ -15,21 +16,25 @@ export default class FirehoseIterable {
   private timeout: number
   private seq: number
   private maxPending: number
+  private ignoreTypes: Set<string>
 
   async create({
     service,
     seq,
     timeout,
     maxPending,
+    ignoreTypes,
   }: {
     service?: string
     seq?: number
     timeout?: number
     maxPending?: number
+    ignoreTypes?: string[]
   } = {}) {
     this.service = service || 'wss://bsky.network'
     this.timeout = timeout || 10000
     this.maxPending = maxPending || 10000
+    this.ignoreTypes = new Set(ignoreTypes || [])
 
     if (seq && Number.isSafeInteger(seq)) this.seq = seq
     else this.seq = 0
@@ -86,10 +91,23 @@ export default class FirehoseIterable {
 
     do {
       while (!this.commitQueue.isEmpty()) {
-        const commit: any = this.commitQueue.shift()
+        const commit: Commit | undefined = this.commitQueue.shift()
+        if (commit === undefined) continue
+
         const now = Date.now()
 
-        if (commit === undefined) break
+        let interestingCommit = true
+
+        if (Array.isArray(commit.ops)) {
+          for (const op of commit.ops) {
+            if (this.ignoreTypes.has(op.path.split('/')[0])) {
+              interestingCommit = false
+              break
+            }
+          }
+        }
+
+        if (!interestingCommit) continue
 
         if (!shouldWait && now - this.lastCommitTime > timeout) {
           logger.error(`no events received for ${Math.floor(timeout / 1000)}s`)
