@@ -8,6 +8,7 @@ const envSchema = z.object({
   LABELLER_SERVICE: z.string().url().default('https://bsky.social'),
   PUBLIC_SERVICE: z.string().url().default('https://api.bsky.app'),
   PLC_DIRECTORY: z.string().url().default('https://plc.directory'),
+  SERVICE_ENDPOINT: z.string().url().default('wss://bsky.network'),
   NEON_DATABASE_URL: z.string().url(),
   NEWHANDLE_EXPIRY: z.coerce.number().default(2592000),
   DANGEROUSLY_EXPOSE_SECRETS: z

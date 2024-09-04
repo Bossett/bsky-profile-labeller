@@ -200,6 +200,7 @@ export default async function firehoseWatcher() {
 
     try {
       const firehose = await new FirehoseIterable().create({
+        service: env.SERVICE_ENDPOINT,
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
         maxPending: 200000,
