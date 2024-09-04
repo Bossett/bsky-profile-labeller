@@ -16,12 +16,12 @@ const limits = {
   DELETE_LIMIT_MAX_RATE: 2_750,
   DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: undefined,
+  PLC_LIMIT_MAX_CONCURRENT: 96,
   PLC_LIMIT_MAX_DELAY_MS: undefined,
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,
   // rate limit for public API
-  PUBLIC_LIMIT_MAX_CONCURRENT: undefined,
+  PUBLIC_LIMIT_MAX_CONCURRENT: 96,
   PUBLIC_LIMIT_MAX_DELAY_MS: undefined,
   PUBLIC_LIMIT_MAX_RATE: undefined,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: undefined,
@@ -39,11 +39,11 @@ const limits = {
   MAX_PROCESSING_TIME_MS: 2 * 60 * 1000, // the maximum time any given commit can take to process
   REGULAR_POST_STDEV_MS: 12 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 30 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
-  USER_DETAILS_MAX_SIZE: 20000,
+  USER_DETAILS_MAX_SIZE: 50000,
   AUTHOR_FEED_MAX_AGE_MS: 30 * 60 * 1000, // as above for author feed, resets on post
-  AUTHOR_FEED_MAX_SIZE: 20000,
+  AUTHOR_FEED_MAX_SIZE: 50000,
   PLC_DIRECTORY_MAX_AGE_MS: 60 * 60 * 1000,
-  PLC_DIRECTORY_MAX_SIZE: 20000,
+  PLC_DIRECTORY_MAX_SIZE: 50000,
   POST_CACHE_MAX_AGE_MS: 15 * 60 * 1000,
   POST_CACHE_MAX_SIZE: 500,
   MIN_BATCH_WAIT_TIME_MS: 100,
