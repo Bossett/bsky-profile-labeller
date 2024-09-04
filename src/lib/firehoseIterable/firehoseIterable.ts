@@ -31,7 +31,7 @@ export default class FirehoseIterable {
     maxPending?: number
     ignoreTypes?: string[]
   } = {}) {
-    this.service = service || 'ws://bsky.network'
+    this.service = service || 'wss://bsky.network'
     this.timeout = timeout || 10000
     this.maxPending = maxPending || 10000
     this.ignoreTypes = new Set(ignoreTypes || [])
