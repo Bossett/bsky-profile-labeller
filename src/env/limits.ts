@@ -16,18 +16,18 @@ const limits = {
   DELETE_LIMIT_MAX_RATE: 2_750,
   DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 256,
+  PLC_LIMIT_MAX_CONCURRENT: undefined,
   PLC_LIMIT_MAX_DELAY_MS: undefined,
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,
   // rate limit for public API
-  PUBLIC_LIMIT_MAX_CONCURRENT: 96,
+  PUBLIC_LIMIT_MAX_CONCURRENT: undefined,
   PUBLIC_LIMIT_MAX_DELAY_MS: undefined,
   PUBLIC_LIMIT_MAX_RATE: undefined,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: undefined,
 
   MAX_RETRIES: 1, // retries for HTTP calls and attempts to process commits
-  MAX_WAIT_RETRY_MS: 1000, // some HTTP calls are retried, this sets the max wait between retries
+  MAX_WAIT_RETRY_MS: 500, // some HTTP calls are retried, this sets the max wait between retries
   // ***** APPLICATION CONFIG *****
   AUTHOR_FEED_MAX_RESULTS: 30, // sets the limit parameter requesting an author's posts - 30 is what bsky.app uses so the cache should be fresher
   DB_WRITE_INTERVAL_MS: 15 * 60 * 1000, // time between pauses to update firehose sequence and scavenge cache - higher is generally better but you will have to reprocess this much on restart
