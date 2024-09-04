@@ -70,10 +70,10 @@ export default class FirehoseIterable {
       // prevent memory leak by keeping queue to ~5000
       // need to adjust to the best values to *just* keep the ws alive
 
-      const maxQueue = this.maxPending
-
-      while (this.commitQueue.length >= maxQueue) {
-        await wait(1000)
+      while (this.commitQueue.length >= this.maxPending) {
+        logger.debug(`commit queue is ${this.commitQueue.length}, waiting...`)
+        while (this.commitQueue.length >= this.maxPending * 0.5)
+          await wait(1000)
       }
     }
   }
