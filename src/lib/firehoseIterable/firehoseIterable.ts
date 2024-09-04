@@ -73,7 +73,7 @@ export default class FirehoseIterable {
       const maxQueue = this.maxPending
 
       while (this.commitQueue.length >= maxQueue) {
-        await wait(100)
+        await wait(1000)
       }
     }
   }

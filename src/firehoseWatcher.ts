@@ -202,7 +202,7 @@ export default async function firehoseWatcher() {
       const firehose = await new FirehoseIterable().create({
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
-        maxPending: 100000,
+        maxPending: 200000,
         includeTypes: ['app.bsky.feed.post', 'app.bsky.actor.profile'],
       })
 
