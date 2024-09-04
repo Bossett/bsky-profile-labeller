@@ -31,7 +31,7 @@ export default class FirehoseIterable {
     maxPending?: number
     ignoreTypes?: string[]
   } = {}) {
-    this.service = service || 'wss://bsky.network'
+    this.service = service || 'ws://bsky.network'
     this.timeout = timeout || 10000
     this.maxPending = maxPending || 10000
     this.ignoreTypes = new Set(ignoreTypes || [])
@@ -70,24 +70,24 @@ export default class FirehoseIterable {
       // prevent memory leak by keeping queue to ~5000
       // need to adjust to the best values to *just* keep the ws alive
 
-      const [maxWait, maxQueue, scaleFromPer] = [
-        this.timeout - 1000,
-        this.maxPending,
-        0.5,
-      ]
-      const scaleFrom = maxQueue * scaleFromPer
-      const waitTime = Math.floor(
-        Math.min(
-          Math.max(this.commitQueue.length - scaleFrom, 0) *
-            (maxWait / (maxQueue - scaleFrom)),
-          maxWait,
-        ),
-      )
-      if (waitTime > 100) await wait(waitTime)
-
-      while (waitTime >= maxWait && this.commitQueue.length >= maxQueue) {
-        await wait(10)
-      }
+      //const [maxWait, maxQueue, scaleFromPer] = [
+      //  this.timeout - 1000,
+      //  this.maxPending,
+      //  0.5,
+      //]
+      //const scaleFrom = maxQueue * scaleFromPer
+      //const waitTime = Math.floor(
+      //  Math.min(
+      //    Math.max(this.commitQueue.length - scaleFrom, 0) *
+      //      (maxWait / (maxQueue - scaleFrom)),
+      //    maxWait,
+      //  ),
+      //)
+      //if (waitTime > 100) await wait(waitTime)
+      //
+      //while (waitTime >= maxWait && this.commitQueue.length >= maxQueue) {
+      //  await wait(10)
+      //}
     }
   }
 
