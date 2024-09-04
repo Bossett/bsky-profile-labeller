@@ -203,12 +203,7 @@ export default async function firehoseWatcher() {
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
         maxPending: 10000,
-        ignoreTypes: [
-          'app.bsky.feed.repost',
-          'app.bsky.graph.follow',
-          'app.bsky.feed.like',
-          'app.bsky.graph.listitem',
-        ],
+        includeTypes: ['app.bsky.feed.post', 'app.bsky.actor.profile'],
       })
 
       for await (const commit of firehose) {

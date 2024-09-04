@@ -16,25 +16,25 @@ export default class FirehoseIterable {
   private timeout: number
   private seq: number
   private maxPending: number
-  private ignoreTypes: Set<string>
+  private includeTypes: Set<string>
 
   async create({
     service,
     seq,
     timeout,
     maxPending,
-    ignoreTypes,
+    includeTypes,
   }: {
     service?: string
     seq?: number
     timeout?: number
     maxPending?: number
-    ignoreTypes?: string[]
+    includeTypes?: string[]
   } = {}) {
     this.service = service || 'wss://bsky.network'
     this.timeout = timeout || 10000
     this.maxPending = maxPending || 10000
-    this.ignoreTypes = new Set(ignoreTypes || [])
+    this.includeTypes = new Set(includeTypes || [])
 
     if (seq && Number.isSafeInteger(seq)) this.seq = seq
     else this.seq = 0
@@ -62,7 +62,7 @@ export default class FirehoseIterable {
       if (Array.isArray(commit.ops) && commit.ops.length > 0) {
         const [collection] = commit.ops[0].path.split('/')
 
-        if (!this.ignoreTypes.has(collection)) {
+        if (this.includeTypes.has(collection)) {
           this.commitQueue.push(commit)
         }
       }
