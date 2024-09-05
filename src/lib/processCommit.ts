@@ -91,32 +91,23 @@ export function _processCommit(commit: Commit): Promise<void> {
         ? new Date(commit.meta['time']).getTime()
         : 0
 
-      const cachePurgePromises: Promise<void>[] = []
-
-      if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
-        cachePurgePromises.push(
-          (async () => {
-            if (purgePlcDirectoryCache(did, time)) {
-              logger.debug(
-                `got identity change, refreshing plc cache of ${did}`,
-              )
-            }
-          })(),
-        )
+      const purges = async () => {
+        if (
+          commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity'
+        ) {
+          if (purgePlcDirectoryCache(did, time)) {
+            logger.debug(`got identity change, refreshing plc cache of ${did}`)
+          }
+        }
+        if (commit.record['$type'] === 'app.bsky.actor.profile') {
+          if (purgeDetailsCache(did, time)) {
+            logger.debug(
+              `got profile change, refreshing profile cache of ${did}`,
+            )
+          }
+        }
       }
-      if (commit.record['$type'] === 'app.bsky.actor.profile') {
-        cachePurgePromises.push(
-          (async () => {
-            if (purgeDetailsCache(did, time)) {
-              logger.debug(
-                `got profile change, refreshing profile cache of ${did}`,
-              )
-            }
-          })(),
-        )
-      }
-
-      await Promise.all(cachePurgePromises)
+      purges()
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
         await getUserDetails(did)
@@ -206,7 +197,9 @@ export function _processCommit(commit: Commit): Promise<void> {
 
       let opsResults: any[]
 
-      opsResults = (await Promise.all(promArray)).flatMap((item) => item)
+      opsResults = (await Promise.allSettled(promArray)).flatMap((item) =>
+        item.status === 'fulfilled' ? [item.value] : [],
+      )
 
       const labelOperations = opsResults.reduce(
         (ops, op) => {
@@ -286,7 +279,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         labelOperations.create.length > 0 ||
         labelOperations.remove.length > 0
       ) {
-        await insertOperations(operations)
+        insertOperations(operations)
       }
 
       clearTimeout(failTimeout)
@@ -354,7 +347,7 @@ async function queueManager() {
         )
       }
 
-      await Promise.all(commitsPromises)
+      await Promise.allSettled(commitsPromises)
       commitsPromises.length = 0
     }
     knownBadCommits.clear()
