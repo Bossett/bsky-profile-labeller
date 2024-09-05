@@ -6,22 +6,22 @@ const limits = {
   AUTH_LIMIT_MAX_RATE: 8,
   AUTH_LIMIT_RATE_INTERVAL_MS: 40 * 60 * 1000,
   // rate limiter for authed request
-  PDS_LIMIT_MAX_CONCURRENT: 128,
+  PDS_LIMIT_MAX_CONCURRENT: undefined,
   PDS_LIMIT_MAX_DELAY_MS: undefined,
   PDS_LIMIT_MAX_RATE: 2_750,
   PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
   // rate limiter for delete request
-  DELETE_LIMIT_MAX_CONCURRENT: 128,
+  DELETE_LIMIT_MAX_CONCURRENT: undefined,
   DELETE_LIMIT_MAX_DELAY_MS: undefined,
   DELETE_LIMIT_MAX_RATE: 2_750,
   DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 256,
+  PLC_LIMIT_MAX_CONCURRENT: undefined,
   PLC_LIMIT_MAX_DELAY_MS: undefined,
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,
   // rate limit for public API
-  PUBLIC_LIMIT_MAX_CONCURRENT: 48,
+  PUBLIC_LIMIT_MAX_CONCURRENT: undefined,
   PUBLIC_LIMIT_MAX_DELAY_MS: undefined,
   PUBLIC_LIMIT_MAX_RATE: undefined,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: undefined,
