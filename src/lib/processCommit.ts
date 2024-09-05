@@ -18,6 +18,8 @@ import wait from '@/helpers/wait.js'
 import Denque from 'denque'
 import { insertListItemOperation } from '@/lib/insertListItemOperation.js'
 
+const debug: Boolean = env.DANGEROUSLY_EXPOSE_SECRETS
+
 type Commit = {
   record?: any
   atURL: any
@@ -53,7 +55,7 @@ export function validateCommit(commit: Commit): { seq?: number; did?: string } {
 
   const matchDid = did.match(regexDid)
   if (!matchDid) {
-    logger.debug(`${seq}: invalid did at ${commit.repo}`)
+    if (debug) logger.debug(`${seq}: invalid did at ${commit.repo}`)
     return {}
   }
   return { seq: seq, did: did }
@@ -83,7 +85,7 @@ export function _processCommit(commit: Commit): Promise<void> {
       }
 
       failTimeout = setTimeout(() => {
-        logger.debug(`${seq}: took too long, failing...`)
+        if (debug) logger.debug(`${seq}: took too long, failing...`)
         reject(new Error(`ProcessCommitTimeout`))
       }, env.limits.MAX_PROCESSING_TIME_MS)
 
@@ -96,14 +98,18 @@ export function _processCommit(commit: Commit): Promise<void> {
           commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity'
         ) {
           if (purgePlcDirectoryCache(did, time)) {
-            logger.debug(`got identity change, refreshing plc cache of ${did}`)
+            if (debug)
+              logger.debug(
+                `got identity change, refreshing plc cache of ${did}`,
+              )
           }
         }
         if (commit.record['$type'] === 'app.bsky.actor.profile') {
           if (purgeDetailsCache(did, time)) {
-            logger.debug(
-              `got profile change, refreshing profile cache of ${did}`,
-            )
+            if (debug)
+              logger.debug(
+                `got profile change, refreshing profile cache of ${did}`,
+              )
           }
         }
       }
@@ -113,7 +119,8 @@ export function _processCommit(commit: Commit): Promise<void> {
         await getUserDetails(did)
 
       if (tmpData.error) {
-        logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
+        if (debug)
+          logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
 
         clearTimeout(failTimeout)
         reject()
@@ -139,7 +146,8 @@ export function _processCommit(commit: Commit): Promise<void> {
             /at:\/\/(did:[^:]+:[^\/]+)\/app\.bsky\.feed\.post\/([^\/]+)/
           const match = commit.atURL.match(regex)
           if (!match) {
-            logger.debug(`${seq}: invalid commit URL ${commit.atURL}`)
+            if (debug)
+              logger.debug(`${seq}: invalid commit URL ${commit.atURL}`)
 
             clearTimeout(failTimeout)
             reject()
@@ -253,7 +261,7 @@ export function _processCommit(commit: Commit): Promise<void> {
 
       if (labelOperations.remove.length > 0) {
         for (const newLabel of labelOperations.remove) {
-          logger.debug(`${seq}: unlabel ${did} ${newLabel}`)
+          if (debug) logger.debug(`${seq}: unlabel ${did} ${newLabel}`)
           operations.push({
             label: newLabel,
             action: 'remove',
@@ -264,7 +272,7 @@ export function _processCommit(commit: Commit): Promise<void> {
       }
       if (labelOperations.create.length > 0) {
         for (const newLabel of labelOperations.create) {
-          logger.debug(`${seq}: label ${did} ${newLabel}`)
+          if (debug) logger.debug(`${seq}: label ${did} ${newLabel}`)
           operations.push({
             label: newLabel,
             action: 'create',
@@ -279,7 +287,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         labelOperations.create.length > 0 ||
         labelOperations.remove.length > 0
       ) {
-        insertOperations(operations)
+        await insertOperations(operations)
       }
 
       clearTimeout(failTimeout)
@@ -298,7 +306,7 @@ export function _processCommit(commit: Commit): Promise<void> {
 const processQueue = new Denque<Commit>()
 
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
-const taskBuffer = maxActiveTasks * 2
+const taskBuffer = maxActiveTasks * 3
 let runningCommits = new Set<number>()
 
 const knownBadCommits = new Set<number>()
@@ -322,19 +330,22 @@ async function queueManager() {
           _processCommit(commit)
             .then(() => {
               if (knownBadCommits.has(seq)) {
-                logger.debug(`commit (seq ${seq}) succeeded after retry`)
+                if (debug)
+                  logger.debug(`commit (seq ${seq}) succeeded after retry`)
                 knownBadCommits.delete(seq)
               }
             })
             .catch((e) => {
               if (e.message === 'ProcessCommitTimeout') {
                 if (!knownBadCommits.has(seq)) {
-                  logger.debug(`${seq} timed out and will be retried`)
+                  if (debug)
+                    logger.debug(`${seq} timed out and will be retried`)
                   processCommit(commit)
                   // will know to fail it next time:
                   knownBadCommits.add(seq)
                 } else {
-                  logger.warn(`commit (seq ${seq}) failed after retry`)
+                  if (debug)
+                    logger.warn(`commit (seq ${seq}) failed after retry`)
                   knownBadCommits.delete(seq)
                 }
               } else {
