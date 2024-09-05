@@ -27,7 +27,7 @@ export default async function labelEmitter() {
           action: true,
           unixtimescheduled: true,
         },
-        limit: env.limits.PDS_LIMIT_MAX_CONCURRENT * 5,
+        limit: 640,
       })
 
       if (events.length === 0) continue
