@@ -287,7 +287,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         labelOperations.create.length > 0 ||
         labelOperations.remove.length > 0
       ) {
-        await insertOperations(operations)
+        insertOperations(operations)
       }
 
       clearTimeout(failTimeout)
