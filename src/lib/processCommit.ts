@@ -91,16 +91,32 @@ export function _processCommit(commit: Commit): Promise<void> {
         ? new Date(commit.meta['time']).getTime()
         : 0
 
+      const cachePurgePromises: Promise<void>[] = []
+
       if (commit.meta['$type'] == 'com.atproto.sync.subscribeRepos#identity') {
-        if (purgePlcDirectoryCache(did, time)) {
-          logger.debug(`got identity change, refreshing plc cache of ${did}`)
-        }
+        cachePurgePromises.push(
+          (async () => {
+            if (purgePlcDirectoryCache(did, time)) {
+              logger.debug(
+                `got identity change, refreshing plc cache of ${did}`,
+              )
+            }
+          })(),
+        )
       }
       if (commit.record['$type'] === 'app.bsky.actor.profile') {
-        if (purgeDetailsCache(did, time)) {
-          logger.debug(`got profile change, refreshing profile cache of ${did}`)
-        }
+        cachePurgePromises.push(
+          (async () => {
+            if (purgeDetailsCache(did, time)) {
+              logger.debug(
+                `got profile change, refreshing profile cache of ${did}`,
+              )
+            }
+          })(),
+        )
       }
+
+      await Promise.all(cachePurgePromises)
 
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
         await getUserDetails(did)
@@ -190,9 +206,7 @@ export function _processCommit(commit: Commit): Promise<void> {
 
       let opsResults: any[]
 
-      opsResults = (await Promise.allSettled(promArray)).flatMap((item) =>
-        item.status === 'fulfilled' ? [item.value] : [],
-      )
+      opsResults = (await Promise.all(promArray)).flatMap((item) => item)
 
       const labelOperations = opsResults.reduce(
         (ops, op) => {
@@ -340,7 +354,7 @@ async function queueManager() {
         )
       }
 
-      await Promise.allSettled(commitsPromises)
+      await Promise.all(commitsPromises)
       commitsPromises.length = 0
     }
     knownBadCommits.clear()
