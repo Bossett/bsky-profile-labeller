@@ -303,89 +303,48 @@ export function _processCommit(commit: Commit): Promise<void> {
   })
 }
 
-const processQueue = new Denque<Commit>()
-
 const maxActiveTasks = env.limits.MAX_CONCURRENT_PROCESSCOMMITS
-const taskBuffer = maxActiveTasks * 3
-let runningCommits = new Set<number>()
 
-const knownBadCommits = new Set<number>()
+class Semaphore {
+  private tasks: (() => void)[] = []
+  private counter: number
 
-async function queueManager() {
-  do {
-    while (!processQueue.isEmpty()) {
-      const commits = processQueue.splice(
-        0,
-        maxActiveTasks - runningCommits.size,
-      )
-      if (!commits || commits.length === 0) continue
+  constructor(maxConcurrent: number) {
+    this.counter = maxConcurrent
+  }
 
-      const commitsPromises: Promise<any>[] = []
-      for (const commit of commits) {
-        const seq = Number.parseInt(commit.meta['seq'])
-        if (runningCommits.has(seq)) continue
-
-        runningCommits.add(seq)
-        commitsPromises.push(
-          _processCommit(commit)
-            .then(() => {
-              if (knownBadCommits.has(seq)) {
-                if (debug)
-                  logger.debug(`commit (seq ${seq}) succeeded after retry`)
-                knownBadCommits.delete(seq)
-              }
-            })
-            .catch((e) => {
-              if (e.message === 'ProcessCommitTimeout') {
-                if (!knownBadCommits.has(seq)) {
-                  if (debug)
-                    logger.debug(`${seq} timed out and will be retried`)
-                  processCommit(commit)
-                  // will know to fail it next time:
-                  knownBadCommits.add(seq)
-                } else {
-                  if (debug)
-                    logger.warn(`commit (seq ${seq}) failed after retry`)
-                  knownBadCommits.delete(seq)
-                }
-              } else {
-                knownBadCommits.delete(seq)
-              }
-            })
-            .finally(() => {
-              runningCommits.delete(seq)
-            }),
-        )
-      }
-
-      await Promise.allSettled(commitsPromises)
-      commitsPromises.length = 0
+  async acquire() {
+    if (this.counter > 0) {
+      this.counter--
+      return
     }
-    knownBadCommits.clear()
-    runningCommits.clear()
-  } while (await wait(10))
+    await new Promise<void>((resolve) => this.tasks.push(resolve))
+  }
+
+  release() {
+    this.counter++
+    if (this.tasks.length > 0) {
+      const nextTask = this.tasks.shift()
+      if (nextTask) nextTask()
+    }
+  }
 }
+
+const semaphore = new Semaphore(maxActiveTasks)
 
 export async function processCommit(commit: Commit): Promise<boolean> {
   const isValidCommit = validateCommit(commit)
   if (!(isValidCommit.did && isValidCommit.seq)) return false
 
-  while (processQueue.length >= taskBuffer) {
-    await wait(10)
-  }
-
-  processQueue.push(commit)
+  await semaphore.acquire().then(() => {
+    _processCommit(commit)
+      .catch((err) => {
+        //
+      })
+      .finally(() => {
+        semaphore.release()
+      })
+  })
 
   return isValidCommit.did ? true : false
 }
-
-export function resetQueue() {
-  const count = processQueue.size()
-
-  processQueue.clear()
-  knownBadCommits.clear()
-  runningCommits.clear()
-  return count
-}
-
-queueManager()
