@@ -46,13 +46,11 @@ class CachedFetch {
   }
 
   protected compressData(data: any) {
-    return data
-    //return zlib.deflateSync(JSON.stringify(data))
+    return zlib.deflateSync(JSON.stringify(data))
   }
 
   protected expandData(data: any) {
-    return data
-    // return JSON.parse(zlib.inflateSync(data).toString())
+    return JSON.parse(zlib.inflateSync(data).toString())
   }
 
   private lock: Promise<void> | null = null
