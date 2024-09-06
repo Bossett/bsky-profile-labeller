@@ -22,7 +22,6 @@ const delay =
 export default async function labelEmitter() {
   do {
     await _labelEmitter()
-    logger.error('waiting')
   } while (await wait(delay))
 }
 
