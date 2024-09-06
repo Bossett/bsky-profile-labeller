@@ -203,7 +203,7 @@ export default async function firehoseWatcher() {
         service: env.SERVICE_ENDPOINT,
         seq: seq,
         timeout: env.limits.MAX_FIREHOSE_DELAY,
-        maxPending: 1000,
+        maxPending: env.limits.FIREHOSE_MAX_PENDING,
         includeTypes: ['app.bsky.feed.post', 'app.bsky.actor.profile'],
       })
 

@@ -48,6 +48,7 @@ const limits = {
   POST_CACHE_MAX_SIZE: 3000,
   MIN_BATCH_WAIT_TIME_MS: 500,
   BATCH_CYCLE_TIMEOUT_MS: 3 * 60 * 1000,
+  FIREHOSE_MAX_PENDING: 5000,
 }
 
 const validateLimits = {
