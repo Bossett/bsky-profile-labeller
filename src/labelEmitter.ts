@@ -1,187 +1,171 @@
 import wait from '@/helpers/wait.js'
 import logger from '@/helpers/logger.js'
-
 import emitAccountReport from '@/emitAccountReport.js'
-
 import { agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
-
 import db, { schema, lte, inArray } from '@/db/db.js'
 import { purgeCacheForDid } from './lib/getUserDetails.js'
 import env from '@/env/env.js'
 
-const delay =
-  Math.floor(
-    env.limits.PDS_LIMIT_RATE_INTERVAL_MS /
-      (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_MAX_CONCURRENT) /
-      1000,
-  ) *
-  2 *
-  1000
+type Event = {
+  id: number
+  label: string
+  action: 'create' | 'remove'
+  did: string
+  comment: string | null
+  unixtimescheduled: number | null
+}
 
 export default async function labelEmitter() {
   do {
-    await _labelEmitter()
-  } while (await wait(delay))
+    const events = await db.query.label_actions.findMany({
+      where: lte(
+        schema.label_actions.unixtimescheduled,
+        Math.floor(Date.now() / 1000),
+      ),
+      columns: {
+        label: true,
+        did: true,
+        comment: true,
+        id: true,
+        action: true,
+        unixtimescheduled: true,
+      },
+      limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
+    })
+    if (events.length > 0) {
+      const [completedEvents, groupedEvents, eventLog] = await processEvents(
+        events,
+      )
+      await Promise.allSettled([
+        logAndCleanup(completedEvents, groupedEvents, eventLog),
+        wait(10000),
+      ])
+    } else await wait(10000)
+  } while (true)
 }
 
-async function _labelEmitter() {
-  const events = await db.query.label_actions.findMany({
-    where: lte(
-      schema.label_actions.unixtimescheduled,
-      Math.floor(Date.now() / 1000),
-    ),
-    // orderBy: schema.label_actions.unixtimescheduled,
-    columns: {
-      label: true,
-      did: true,
-      comment: true,
-      id: true,
-      action: true,
-      unixtimescheduled: true,
+async function processEvents(events: Event[]): Promise<
+  [
+    Set<number>,
+    {
+      [key: string]: any
     },
-    limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT * 0.75),
-  })
-
-  if (events.length === 0) {
-    return
-  }
-
+    {
+      [key: string]: number
+    },
+  ]
+> {
   const eventLog: { [key: string]: number } = {}
-  let totalEvents = 0
+  const completedEvents = new Set<number>()
+  const groupedEvents = groupEvents(events, eventLog)
 
-  const completedEvents = new Set<typeof schema.label_actions.$inferSelect.id>()
+  await Promise.allSettled(
+    Object.keys(groupedEvents).map((did) =>
+      handleEvent(did, groupedEvents, completedEvents),
+    ),
+  )
 
-  const groupedEvents = events.reduce((accumulatedEvents, event) => {
-    if (!accumulatedEvents[event.did]) {
-      const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
-        event: {
-          $type: 'tools.ozone.moderation.defs#modEventLabel',
-          createLabelVals: [] as string[],
-          negateLabelVals: [] as string[],
-          comment: '',
-        },
-        subject: {
-          $type: 'com.atproto.admin.defs#repoRef',
-          did: event.did,
-        },
-        createdBy: agentDid,
-      }
-      const eventIds: number[] = []
-      const timestamp: number = Date.now()
+  return [completedEvents, groupedEvents, eventLog]
+}
 
-      accumulatedEvents[event.did] = {
-        eventInput: eventInput,
-        eventIds: eventIds,
-        timestamp: timestamp,
-      }
+function groupEvents(events: Event[], eventLog: { [key: string]: number }) {
+  return events.reduce((acc, event) => {
+    if (!acc[event.did]) {
+      acc[event.did] = createEventInput(event)
     }
+    updateEventInput(acc[event.did], event)
+    eventLog[event.label] = (eventLog[event.label] || 0) + 1
+    return acc
+  }, {} as { [key: string]: any })
+}
 
-    const inNegate: number = (
-      accumulatedEvents[event.did].eventInput.event.negateLabelVals as string[]
-    ).findIndex((item) => item === event.label)
-    const inCreate: number = (
-      accumulatedEvents[event.did].eventInput.event.createLabelVals as string[]
-    ).findIndex((item) => item === event.label)
-
-    if (event.action === 'create') {
-      if (inNegate !== -1) {
-        accumulatedEvents[event.did].eventInput.event.negateLabelVals.splice(
-          inNegate,
-          1,
-        )
-      }
-      if (inCreate === -1) {
-        accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
-          event.label,
-        )
-      }
-    }
-    if (event.action === 'remove') {
-      if (inCreate !== -1) {
-        accumulatedEvents[event.did].eventInput.event.createLabelVals.splice(
-          inCreate,
-          1,
-        )
-      }
-      if (inNegate === -1) {
-        accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
-          event.label,
-        )
-      }
-    }
-
-    eventLog[event.label]
-      ? eventLog[event.label]++
-      : (eventLog[event.label] = 1)
-
-    const joinedComments = [
-      ...(accumulatedEvents[event.did].eventInput.event.comment
-        ? [accumulatedEvents[event.did].eventInput.event.comment]
-        : []),
-      ...(event.comment ? [event.comment] : []),
-    ].join(', ')
-
-    accumulatedEvents[event.did].eventInput.event.comment = joinedComments
-
-    accumulatedEvents[event.did].timestamp = event.unixtimescheduled
+function createEventInput(event: Event) {
+  return {
+    eventInput: {
+      event: {
+        $type: 'tools.ozone.moderation.defs#modEventLabel',
+        createLabelVals: [] as string[],
+        negateLabelVals: [] as string[],
+        comment: '',
+      },
+      subject: {
+        $type: 'com.atproto.admin.defs#repoRef',
+        did: event.did,
+      },
+      createdBy: agentDid,
+    },
+    eventIds: [event.id],
+    timestamp: event.unixtimescheduled
       ? event.unixtimescheduled * 1000
-      : Date.now()
+      : Date.now(),
+  }
+}
 
-    accumulatedEvents[event.did].eventIds.push(event.id)
+function updateEventInput(eventInput: any, event: Event) {
+  const { createLabelVals, negateLabelVals } = eventInput.eventInput.event
+  const inNegate = negateLabelVals.indexOf(event.label)
+  const inCreate = createLabelVals.indexOf(event.label)
 
-    totalEvents++
-
-    return accumulatedEvents
-  }, {})
-
-  const eventPromises: Promise<void>[] = []
-
-  for (const didForEvent of Object.keys(groupedEvents)) {
-    eventPromises.push(
-      (async () => {
-        const did = `${didForEvent}`
-
-        groupedEvents[did].eventInput.event.comment = `${
-          groupedEvents[did].eventInput.event.comment
-        } seen at: ${new Date(
-          groupedEvents[did].timestamp,
-        ).toISOString()}`.trim()
-
-        if (await emitAccountReport(groupedEvents[did].eventInput)) {
-          groupedEvents[did].eventIds.forEach((id: number) => {
-            completedEvents.add(id)
-          })
-          purgeCacheForDid(did, groupedEvents[did].timestamp + 1000)
-        }
-        return
-      })(),
-    )
+  if (event.action === 'create') {
+    if (inNegate !== -1) negateLabelVals.splice(inNegate, 1)
+    if (inCreate === -1) createLabelVals.push(event.label)
+  } else {
+    if (inCreate !== -1) createLabelVals.splice(inCreate, 1)
+    if (inNegate === -1) negateLabelVals.push(event.label)
   }
 
-  await Promise.allSettled(eventPromises)
+  eventInput.eventInput.event.comment = [
+    eventInput.eventInput.event.comment,
+    event.comment,
+  ]
+    .filter(Boolean)
+    .join(', ')
+  eventInput.timestamp = event.unixtimescheduled
+    ? event.unixtimescheduled * 1000
+    : Date.now()
+  eventInput.eventIds.push(event.id)
+}
 
+async function handleEvent(
+  did: string,
+  groupedEvents: any,
+  completedEvents: Set<number>,
+) {
+  const event = groupedEvents[did]
+  event.eventInput.event.comment = `${
+    event.eventInput.event.comment
+  } seen at: ${new Date(event.timestamp).toISOString()}`.trim()
+
+  if (await emitAccountReport(event.eventInput)) {
+    event.eventIds.forEach((id: number) => completedEvents.add(id))
+    purgeCacheForDid(did, event.timestamp + 1000)
+  }
+}
+
+async function logAndCleanup(
+  completedEvents: Set<number>,
+  groupedEvents: any,
+  eventLog: { [key: string]: number },
+) {
   logger.debug(
-    `grouped events: ${totalEvents} events into ${
+    `grouped events: ${completedEvents.size} events into ${
       Object.keys(groupedEvents).length
     } groups`,
   )
 
   if (completedEvents.size > 0) {
     logger.debug(`deleting ${completedEvents.size} completed events`)
-    db.delete(schema.label_actions).where(
-      inArray(schema.label_actions.id, Array.from(completedEvents)),
-    )
+    await db
+      .delete(schema.label_actions)
+      .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
 
-    let outputString = `emitted ${completedEvents.size} labels in ${
+    const outputString = `emitted ${completedEvents.size} labels in ${
       Object.keys(groupedEvents).length
     } events:`
-    const labelsOut: string[] = []
-
-    for (const event of Object.keys(eventLog)) {
-      labelsOut.push(`${eventLog[event]} x ${event}`)
-    }
-
+    const labelsOut = Object.keys(eventLog).map(
+      (event) => `${eventLog[event]} x ${event}`,
+    )
     logger.info(`${outputString} ${labelsOut.join(', ')}`)
   }
 }
