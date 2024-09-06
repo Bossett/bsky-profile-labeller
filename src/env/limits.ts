@@ -16,7 +16,7 @@ const limits = {
   DELETE_LIMIT_MAX_RATE: 2_750,
   DELETE_LIMIT_RATE_INTERVAL_MS: 60 * 60 * 1000,
   // rate limit for plc.directory
-  PLC_LIMIT_MAX_CONCURRENT: 128,
+  PLC_LIMIT_MAX_CONCURRENT: 256,
   PLC_LIMIT_MAX_DELAY_MS: undefined,
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,

@@ -11,8 +11,13 @@ import { purgeCacheForDid } from './lib/getUserDetails.js'
 import env from '@/env/env.js'
 
 const delay =
-  env.limits.PDS_LIMIT_RATE_INTERVAL_MS /
-  (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_MAX_CONCURRENT)
+  Math.floor(
+    env.limits.PDS_LIMIT_RATE_INTERVAL_MS /
+      (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_MAX_CONCURRENT) /
+      1000,
+  ) *
+  2 *
+  1000
 
 export default async function labelEmitter() {
   do {
