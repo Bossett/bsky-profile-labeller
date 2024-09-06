@@ -54,7 +54,7 @@ async function syncListChangeToDb(did: string, currentLabels: Set<string>) {
     )
 
   if (!isValueMapAndExistingEqual) {
-    await db.transaction(async (tx) => {
+    db.transaction(async (tx) => {
       if (valueMap.length > 0) {
         const validIds = await tx
           .insert(schema.listItems)

@@ -45,8 +45,7 @@ export async function insertOperations(
   }
 
   if (activeOps.length > 0) {
-    await db
-      .insert(schema.label_actions)
+    db.insert(schema.label_actions)
       .values(activeOps)
       .then(() => {
         logger.debug(`inserted ${activeOps.length} operations`)

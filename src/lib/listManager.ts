@@ -163,7 +163,7 @@ export async function updateListItemURLs(
 ) {
   if (items.length === 0) return 0
   const updatedIds: { updatedId: number }[] = []
-  await db.transaction(async (tx) => {
+  db.transaction(async (tx) => {
     updatedIds.push(
       ...(await tx
         .insert(schema.listItems)

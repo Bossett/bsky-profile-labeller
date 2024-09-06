@@ -165,9 +165,9 @@ export default async function labelEmitter() {
 
     if (completedEvents.size > 0) {
       logger.debug(`deleting ${completedEvents.size} completed events`)
-      await db
-        .delete(schema.label_actions)
-        .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
+      db.delete(schema.label_actions).where(
+        inArray(schema.label_actions.id, Array.from(completedEvents)),
+      )
 
       let outputString = `emitted ${completedEvents.size} labels in ${
         Object.keys(groupedEvents).length
