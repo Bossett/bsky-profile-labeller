@@ -19,10 +19,11 @@ export default async function emitAccountReport(
   }
 
   try {
-    await pdsLimit(() =>
-      agent
-        .withProxy('atproto_labeler', agentDid)
-        .api.tools.ozone.moderation.emitEvent(eventInput),
+    await pdsLimit(
+      async () =>
+        await agent
+          .withProxy('atproto_labeler', agentDid)
+          .api.tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {
     if (

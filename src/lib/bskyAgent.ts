@@ -7,11 +7,12 @@ const _agent = new BskyAgent({ service: env.LABELLER_SERVICE })
 
 const _reauth = async (agent: BskyAgent) => {
   try {
-    await authLimit(() =>
-      agent.login({
-        identifier: env.LABELLER_HANDLE,
-        password: env.LABELLER_PASSWORD,
-      }),
+    await authLimit(
+      async () =>
+        await agent.login({
+          identifier: env.LABELLER_HANDLE,
+          password: env.LABELLER_PASSWORD,
+        }),
     )
   } catch (e) {
     return false
@@ -22,10 +23,11 @@ const _reauth = async (agent: BskyAgent) => {
 if (!(await _reauth(_agent))) throw 'Agent Authentication Failed'
 
 export const agentDid: string = (
-  await authLimit(() =>
-    _agent.com.atproto.identity.resolveHandle({
-      handle: env.LABELLER_HANDLE,
-    }),
+  await authLimit(
+    async () =>
+      await _agent.com.atproto.identity.resolveHandle({
+        handle: env.LABELLER_HANDLE,
+      }),
   )
 ).data.did
 
