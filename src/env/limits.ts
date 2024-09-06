@@ -39,13 +39,13 @@ const limits = {
   MAX_PROCESSING_TIME_MS: 2 * 60 * 1000, // the maximum time any given commit can take to process
   REGULAR_POST_STDEV_MS: 12 * 1000, // the standard deviation required for a post to be considered periodic (rapidposts)
   USER_DETAILS_MAX_AGE_MS: 3 * 60 * 60 * 1000, // how long do cached user details live - higher is better, but can sometimes lead to stale results (cache is purged when events are emitted, so this is generally safe)
-  USER_DETAILS_MAX_SIZE: 12500,
-  AUTHOR_FEED_MAX_AGE_MS: 2 * 60 * 60 * 1000, // as above for author feed, resets on post
-  AUTHOR_FEED_MAX_SIZE: 12500,
-  PLC_DIRECTORY_MAX_AGE_MS: 2 * 60 * 60 * 1000,
-  PLC_DIRECTORY_MAX_SIZE: 12500,
-  POST_CACHE_MAX_AGE_MS: 2 * 60 * 60 * 1000,
-  POST_CACHE_MAX_SIZE: 1500,
+  USER_DETAILS_MAX_SIZE: 10000,
+  AUTHOR_FEED_MAX_AGE_MS: 1 * 60 * 60 * 1000, // as above for author feed, resets on post
+  AUTHOR_FEED_MAX_SIZE: 10000,
+  PLC_DIRECTORY_MAX_AGE_MS: 1 * 60 * 60 * 1000,
+  PLC_DIRECTORY_MAX_SIZE: 10000,
+  POST_CACHE_MAX_AGE_MS: 1 * 60 * 60 * 1000,
+  POST_CACHE_MAX_SIZE: 3000,
   MIN_BATCH_WAIT_TIME_MS: 500,
   BATCH_CYCLE_TIMEOUT_MS: 3 * 60 * 1000,
 }
