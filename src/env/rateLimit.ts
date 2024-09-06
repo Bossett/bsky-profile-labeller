@@ -28,10 +28,3 @@ export const publicLimit = pRateLimit({
   concurrency: env.limits.PUBLIC_LIMIT_MAX_CONCURRENT,
   maxDelay: env.limits.PUBLIC_LIMIT_MAX_DELAY_MS,
 })
-
-export const authLimit = pRateLimit({
-  interval: env.limits.AUTH_LIMIT_RATE_INTERVAL_MS,
-  rate: env.limits.AUTH_LIMIT_MAX_RATE,
-  concurrency: env.limits.AUTH_LIMIT_MAX_CONCURRENT,
-  maxDelay: env.limits.AUTH_LIMIT_MAX_DELAY_MS,
-})
