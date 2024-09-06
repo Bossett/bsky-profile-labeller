@@ -21,123 +21,126 @@ const delay =
 
 export default async function labelEmitter() {
   do {
-    const events = await db.query.label_actions.findMany({
-      where: lte(
-        schema.label_actions.unixtimescheduled,
-        Math.floor(Date.now() / 1000),
-      ),
-      // orderBy: schema.label_actions.unixtimescheduled,
-      columns: {
-        label: true,
-        did: true,
-        comment: true,
-        id: true,
-        action: true,
-        unixtimescheduled: true,
-      },
-      limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT / 2),
-    })
+    await _labelEmitter()
+    logger.error('waiting')
+  } while (await wait(delay))
+}
 
-    if (events.length === 0) {
-      await wait(delay)
+async function _labelEmitter() {
+  const events = await db.query.label_actions.findMany({
+    where: lte(
+      schema.label_actions.unixtimescheduled,
+      Math.floor(Date.now() / 1000),
+    ),
+    // orderBy: schema.label_actions.unixtimescheduled,
+    columns: {
+      label: true,
+      did: true,
+      comment: true,
+      id: true,
+      action: true,
+      unixtimescheduled: true,
+    },
+    limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT * 0.75),
+  })
+
+  if (events.length === 0) {
+    return
+  }
+
+  const eventLog: { [key: string]: number } = {}
+  let totalEvents = 0
+
+  const completedEvents = new Set<typeof schema.label_actions.$inferSelect.id>()
+
+  const groupedEvents = events.reduce((accumulatedEvents, event) => {
+    if (!accumulatedEvents[event.did]) {
+      const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
+        event: {
+          $type: 'tools.ozone.moderation.defs#modEventLabel',
+          createLabelVals: [] as string[],
+          negateLabelVals: [] as string[],
+          comment: '',
+        },
+        subject: {
+          $type: 'com.atproto.admin.defs#repoRef',
+          did: event.did,
+        },
+        createdBy: agentDid,
+      }
+      const eventIds: number[] = []
+      const timestamp: number = Date.now()
+
+      accumulatedEvents[event.did] = {
+        eventInput: eventInput,
+        eventIds: eventIds,
+        timestamp: timestamp,
+      }
     }
 
-    const eventLog: { [key: string]: number } = {}
-    let totalEvents = 0
+    const inNegate: number = (
+      accumulatedEvents[event.did].eventInput.event.negateLabelVals as string[]
+    ).findIndex((item) => item === event.label)
+    const inCreate: number = (
+      accumulatedEvents[event.did].eventInput.event.createLabelVals as string[]
+    ).findIndex((item) => item === event.label)
 
-    const completedEvents = new Set<
-      typeof schema.label_actions.$inferSelect.id
-    >()
-
-    const groupedEvents = events.reduce((accumulatedEvents, event) => {
-      if (!accumulatedEvents[event.did]) {
-        const eventInput: ToolsOzoneModerationEmitEvent.InputSchema = {
-          event: {
-            $type: 'tools.ozone.moderation.defs#modEventLabel',
-            createLabelVals: [] as string[],
-            negateLabelVals: [] as string[],
-            comment: '',
-          },
-          subject: {
-            $type: 'com.atproto.admin.defs#repoRef',
-            did: event.did,
-          },
-          createdBy: agentDid,
-        }
-        const eventIds: number[] = []
-        const timestamp: number = Date.now()
-
-        accumulatedEvents[event.did] = {
-          eventInput: eventInput,
-          eventIds: eventIds,
-          timestamp: timestamp,
-        }
+    if (event.action === 'create') {
+      if (inNegate !== -1) {
+        accumulatedEvents[event.did].eventInput.event.negateLabelVals.splice(
+          inNegate,
+          1,
+        )
       }
-
-      const inNegate: number = (
-        accumulatedEvents[event.did].eventInput.event
-          .negateLabelVals as string[]
-      ).findIndex((item) => item === event.label)
-      const inCreate: number = (
-        accumulatedEvents[event.did].eventInput.event
-          .createLabelVals as string[]
-      ).findIndex((item) => item === event.label)
-
-      if (event.action === 'create') {
-        if (inNegate !== -1) {
-          accumulatedEvents[event.did].eventInput.event.negateLabelVals.splice(
-            inNegate,
-            1,
-          )
-        }
-        if (inCreate === -1) {
-          accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
-            event.label,
-          )
-        }
+      if (inCreate === -1) {
+        accumulatedEvents[event.did].eventInput.event.createLabelVals.push(
+          event.label,
+        )
       }
-      if (event.action === 'remove') {
-        if (inCreate !== -1) {
-          accumulatedEvents[event.did].eventInput.event.createLabelVals.splice(
-            inCreate,
-            1,
-          )
-        }
-        if (inNegate === -1) {
-          accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
-            event.label,
-          )
-        }
+    }
+    if (event.action === 'remove') {
+      if (inCreate !== -1) {
+        accumulatedEvents[event.did].eventInput.event.createLabelVals.splice(
+          inCreate,
+          1,
+        )
       }
+      if (inNegate === -1) {
+        accumulatedEvents[event.did].eventInput.event.negateLabelVals.push(
+          event.label,
+        )
+      }
+    }
 
-      eventLog[event.label]
-        ? eventLog[event.label]++
-        : (eventLog[event.label] = 1)
+    eventLog[event.label]
+      ? eventLog[event.label]++
+      : (eventLog[event.label] = 1)
 
-      const joinedComments = [
-        ...(accumulatedEvents[event.did].eventInput.event.comment
-          ? [accumulatedEvents[event.did].eventInput.event.comment]
-          : []),
-        ...(event.comment ? [event.comment] : []),
-      ].join(', ')
+    const joinedComments = [
+      ...(accumulatedEvents[event.did].eventInput.event.comment
+        ? [accumulatedEvents[event.did].eventInput.event.comment]
+        : []),
+      ...(event.comment ? [event.comment] : []),
+    ].join(', ')
 
-      accumulatedEvents[event.did].eventInput.event.comment = joinedComments
+    accumulatedEvents[event.did].eventInput.event.comment = joinedComments
 
-      accumulatedEvents[event.did].timestamp = event.unixtimescheduled
-        ? event.unixtimescheduled * 1000
-        : Date.now()
+    accumulatedEvents[event.did].timestamp = event.unixtimescheduled
+      ? event.unixtimescheduled * 1000
+      : Date.now()
 
-      accumulatedEvents[event.did].eventIds.push(event.id)
+    accumulatedEvents[event.did].eventIds.push(event.id)
 
-      totalEvents++
+    totalEvents++
 
-      return accumulatedEvents
-    }, {})
+    return accumulatedEvents
+  }, {})
 
-    const eventPromises: Promise<void>[] = []
+  const eventPromises: Promise<void>[] = []
 
-    for (const didForEvent of Object.keys(groupedEvents)) {
-      const fn = async () => {
+  for (const didForEvent of Object.keys(groupedEvents)) {
+    eventPromises.push(
+      (async () => {
         const did = `${didForEvent}`
 
         groupedEvents[did].eventInput.event.comment = `${
@@ -153,34 +156,33 @@ export default async function labelEmitter() {
           purgeCacheForDid(did, groupedEvents[did].timestamp + 1000)
         }
         return
-      }
-      eventPromises.push(fn())
-    }
+      })(),
+    )
+  }
 
-    await Promise.allSettled(eventPromises)
+  await Promise.allSettled(eventPromises)
 
-    logger.debug(
-      `grouped events: ${totalEvents} events into ${
-        Object.keys(groupedEvents).length
-      } groups`,
+  logger.debug(
+    `grouped events: ${totalEvents} events into ${
+      Object.keys(groupedEvents).length
+    } groups`,
+  )
+
+  if (completedEvents.size > 0) {
+    logger.debug(`deleting ${completedEvents.size} completed events`)
+    db.delete(schema.label_actions).where(
+      inArray(schema.label_actions.id, Array.from(completedEvents)),
     )
 
-    if (completedEvents.size > 0) {
-      logger.debug(`deleting ${completedEvents.size} completed events`)
-      db.delete(schema.label_actions).where(
-        inArray(schema.label_actions.id, Array.from(completedEvents)),
-      )
+    let outputString = `emitted ${completedEvents.size} labels in ${
+      Object.keys(groupedEvents).length
+    } events:`
+    const labelsOut: string[] = []
 
-      let outputString = `emitted ${completedEvents.size} labels in ${
-        Object.keys(groupedEvents).length
-      } events:`
-      const labelsOut: string[] = []
-
-      for (const event of Object.keys(eventLog)) {
-        labelsOut.push(`${eventLog[event]} x ${event}`)
-      }
-
-      logger.info(`${outputString} ${labelsOut.join(', ')}`)
+    for (const event of Object.keys(eventLog)) {
+      labelsOut.push(`${eventLog[event]} x ${event}`)
     }
-  } while (true)
+
+    logger.info(`${outputString} ${labelsOut.join(', ')}`)
+  }
 }

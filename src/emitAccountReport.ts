@@ -9,20 +9,21 @@ export default async function emitAccountReport(
   eventInput: ToolsOzoneModerationEmitEvent.InputSchema,
 ): Promise<boolean> {
   if (env.DANGEROUSLY_EXPOSE_SECRETS) {
-    logger.debug(
-      `DANGEROUSLY_EXPOSE_SECRETS is set not emitting:\n ${JSON.stringify(
-        eventInput,
-      )}`,
+    await pdsLimit(async () =>
+      logger.debug(
+        `DANGEROUSLY_EXPOSE_SECRETS is set not emitting:\n ${JSON.stringify(
+          eventInput,
+        )}`,
+      ),
     )
     return true
   }
 
   try {
-    await pdsLimit(
-      async () =>
-        await agent
-          .withProxy('atproto_labeler', agentDid)
-          .api.tools.ozone.moderation.emitEvent(eventInput),
+    await pdsLimit(() =>
+      agent
+        .withProxy('atproto_labeler', agentDid)
+        .api.tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {
     logger.warn(`${e.message} from emitAccountReport failed`)
