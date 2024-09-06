@@ -2,7 +2,7 @@ const limits = {
   // ***** RATE LIMITERS *****
   // the rate limiter for agent login attempts
   AUTH_LIMIT_MAX_CONCURRENT: 1,
-  AUTH_LIMIT_MAX_DELAY_MS: 40 * 60 * 1000 + 20_000,
+  AUTH_LIMIT_MAX_DELAY_MS: undefined,
   AUTH_LIMIT_MAX_RATE: 8,
   AUTH_LIMIT_RATE_INTERVAL_MS: 40 * 60 * 1000,
   // rate limiter for authed request
