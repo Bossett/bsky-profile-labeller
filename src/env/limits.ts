@@ -1,10 +1,10 @@
 const limits = {
   // ***** RATE LIMITERS *****
   // rate limiter for authed request
-  PDS_LIMIT_MAX_CONCURRENT: 256,
+  PDS_LIMIT_MAX_CONCURRENT: 128,
   PDS_LIMIT_MAX_DELAY_MS: undefined,
-  PDS_LIMIT_MAX_RATE: 2_750,
-  PDS_LIMIT_RATE_INTERVAL_MS: 5 * 60 * 1000,
+  PDS_LIMIT_MAX_RATE: 280,
+  PDS_LIMIT_RATE_INTERVAL_MS: 30_000,
   // rate limiter for delete request
   DELETE_LIMIT_MAX_CONCURRENT: 256,
   DELETE_LIMIT_MAX_DELAY_MS: undefined,
