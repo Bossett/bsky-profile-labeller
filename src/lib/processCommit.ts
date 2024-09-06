@@ -233,7 +233,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         ]
       })
 
-      await insertListItemOperation(did, labelOperations)
+      insertListItemOperation(did, labelOperations)
 
       // anything in this list 'refreshed' when it re-triggers
       const handlesToReapply = ['newhandle']

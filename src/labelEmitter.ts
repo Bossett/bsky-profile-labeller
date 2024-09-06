@@ -38,7 +38,7 @@ export default async function labelEmitter() {
       limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT / 2),
     })
 
-    if (events.length === 0) continue
+    if (events.length === 0) await wait(1000)
 
     const eventLog: { [key: string]: number } = {}
     let totalEvents = 0
@@ -180,5 +180,5 @@ export default async function labelEmitter() {
 
       logger.info(`${outputString} ${labelsOut.join(', ')}`)
     }
-  } while (await wait(delay))
+  } while (true)
 }
