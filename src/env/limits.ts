@@ -16,7 +16,7 @@ const limits = {
   PLC_LIMIT_MAX_RATE: undefined,
   PLC_LIMIT_RATE_INTERVAL_MS: undefined,
   // rate limit for public API
-  PUBLIC_LIMIT_MAX_CONCURRENT: 256,
+  PUBLIC_LIMIT_MAX_CONCURRENT: 192,
   PUBLIC_LIMIT_MAX_DELAY_MS: undefined,
   PUBLIC_LIMIT_MAX_RATE: undefined,
   PUBLIC_LIMIT_RATE_INTERVAL_MS: undefined,
