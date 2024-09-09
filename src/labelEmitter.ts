@@ -25,7 +25,7 @@ const waitTime =
 
 export default async function labelEmitter() {
   do {
-    const minWait = (async () => await wait(waitTime))()
+    const promArray: Promise<any>[] = [wait(waitTime)]
     const events = await db.query.label_actions.findMany({
       where: lte(
         schema.label_actions.unixtimescheduled,
@@ -46,11 +46,11 @@ export default async function labelEmitter() {
       const [completedEvents, groupedEvents, eventLog] = await processEvents(
         events,
       )
-      await Promise.allSettled([
-        logAndCleanup(completedEvents, groupedEvents, eventLog),
-        minWait,
-      ])
-    } else await minWait
+      promArray.push(logAndCleanup(completedEvents, groupedEvents, eventLog))
+    }
+
+    await Promise.allSettled(promArray)
+    promArray.length = 0
   } while (true)
 }
 
