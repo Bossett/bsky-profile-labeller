@@ -2,10 +2,8 @@ import { AppBskyActorDefs, ComAtprotoLabelDefs } from '@atproto/api'
 import { publicLimit } from '@/env/rateLimit.js'
 import { agentDid } from '@/lib/bskyAgent.js'
 import env from '@/env/env.js'
-import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
-import logger from '@/helpers/logger'
-import { map } from 'zod'
+import logger from '@/helpers/logger.js'
 
 class UserDetailsFetch extends CachedFetch {
   protected async executeBatch() {
