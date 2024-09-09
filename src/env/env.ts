@@ -9,6 +9,7 @@ const envSchema = z.object({
   PUBLIC_SERVICE: z.string().url().default('https://api.bsky.app'),
   PLC_DIRECTORY: z.string().url().default('https://plc.directory'),
   SERVICE_ENDPOINT: z.string().url().default('wss://bsky.network'),
+  OZONE_URL: z.string().url().default('http://ozone:3000'),
   POSTGRES_DATABASE_URL: z.string().url(),
   NEWHANDLE_EXPIRY: z.coerce.number().default(2592000),
   DANGEROUSLY_EXPOSE_SECRETS: z

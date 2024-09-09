@@ -1,9 +1,11 @@
-import { AppBskyActorDefs } from '@atproto/api'
+import { AppBskyActorDefs, ComAtprotoLabelDefs } from '@atproto/api'
 import { publicLimit } from '@/env/rateLimit.js'
 import { agentDid } from '@/lib/bskyAgent.js'
 import env from '@/env/env.js'
 import wait from '@/helpers/wait.js'
 import CachedFetch from '@/lib/CachedFetch.js'
+import logger from '@/helpers/logger'
+import { map } from 'zod'
 
 class UserDetailsFetch extends CachedFetch {
   protected async executeBatch() {
@@ -43,42 +45,79 @@ class UserDetailsFetch extends CachedFetch {
     try {
       const resPromises: Promise<any>[] = []
 
+      const processProfiles = async (actorsChunk: string[]) => {
+        try {
+          const profiles = await getProfiles(actorsChunk)
+          const profilesMap = profiles.profiles.reduce(
+            (map, profile) => ({ ...map, [profile.did]: profile }),
+            {},
+          )
+
+          const labelsFetch = await fetch(
+            `${
+              env.OZONE_URL
+            }/xrpc/com.atproto.label.queryLabels?uriPatterns=${actorsChunk.join(
+              '&uriPatterns=',
+            )}`,
+          )
+
+          const labelsJson: { labels: ComAtprotoLabelDefs.Label[] } =
+            (await labelsFetch.json()) as {
+              labels: ComAtprotoLabelDefs.Label[]
+            }
+
+          const labelsMap: { [key: string]: ComAtprotoLabelDefs.Label[] } =
+            labelsJson.labels.reduce((map, label) => {
+              if (!map[label.uri]) {
+                map[label.uri] = []
+              }
+              map[label.uri].push(label)
+              return map
+            }, {})
+
+          for (const did of actorsChunk) {
+            if (profilesMap[did]) {
+              if (
+                labelsMap[did] &&
+                Array.isArray(labelsMap[did]) &&
+                labelsMap[did].length > 0
+              ) {
+                profilesMap[did].labels = labelsJson.labels
+                logger.debug(
+                  `${did} from ozone ${JSON.stringify(labelsMap[did])}`,
+                )
+              }
+
+              this.results.set(did, {
+                data: this.compressData(profilesMap[did]),
+                completedDate: Date.now(),
+                url: did,
+                failed: false,
+                lastUsed: Date.now(),
+              })
+              foundActors.add(did)
+            }
+          }
+        } catch (e) {
+          for (const did of actorsChunk) {
+            const idxToRemove = actors.indexOf(did)
+            actors.splice(idxToRemove, 1)
+            this.results.set(did, {
+              data: undefined,
+              completedDate: undefined,
+              url: did,
+              failed: false,
+              lastUsed: Date.now(),
+            })
+          }
+        }
+      }
+
       for (let i = 0; i < actors.length; i += maxRequestChunk) {
         const actorsChunk = actors.slice(i, i + maxRequestChunk)
-        resPromises.push(
-          getProfiles(actorsChunk)
-            .then((profiles) => {
-              const profilesMap = profiles.profiles.reduce(
-                (map, profile) => ({ ...map, [profile.did]: profile }),
-                {},
-              )
-              for (const did of actorsChunk) {
-                if (profilesMap[did]) {
-                  this.results.set(did, {
-                    data: this.compressData(profilesMap[did]),
-                    completedDate: Date.now(),
-                    url: did,
-                    failed: false,
-                    lastUsed: Date.now(),
-                  })
-                  foundActors.add(did)
-                }
-              }
-            })
-            .catch((e) => {
-              for (const did of actorsChunk) {
-                const idxToRemove = actors.indexOf(did)
-                actors.splice(idxToRemove, 1)
-                this.results.set(did, {
-                  data: undefined,
-                  completedDate: undefined,
-                  url: did,
-                  failed: false,
-                  lastUsed: Date.now(),
-                })
-              }
-            }),
-        )
+
+        // Push the promise returned by processProfiles to resPromises
+        resPromises.push(processProfiles(actorsChunk))
       }
 
       await Promise.allSettled(resPromises)
