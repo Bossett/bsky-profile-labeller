@@ -27,6 +27,7 @@ export default async function emitAccountReport(
     )
   } catch (e) {
     logger.warn(`${e.message} from emitAccountReport failed`)
+    logger.warn(`${e}`)
     return false
   }
 
