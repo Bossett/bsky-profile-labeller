@@ -23,7 +23,7 @@ const waitTime =
 
 export default async function labelEmitter() {
   do {
-    const minWait = async () => await wait(waitTime)
+    const minWait = (async () => await wait(waitTime))()
     const events = await db.query.label_actions.findMany({
       where: lte(
         schema.label_actions.unixtimescheduled,
