@@ -1,7 +1,7 @@
 const limits = {
   // ***** RATE LIMITERS *****
   // rate limiter for authed request
-  PDS_LIMIT_MAX_CONCURRENT: 96,
+  PDS_LIMIT_MAX_CONCURRENT: 48,
   PDS_LIMIT_MAX_DELAY_MS: undefined,
   PDS_LIMIT_MAX_RATE: 280,
   PDS_LIMIT_RATE_INTERVAL_MS: 30_000,
