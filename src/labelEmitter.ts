@@ -40,7 +40,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
-      limit: 2 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
+      limit: 4 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
     })
     if (events.length > 0) {
       const [completedEvents, groupedEvents, eventLog] = await processEvents(
