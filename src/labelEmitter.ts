@@ -16,6 +16,10 @@ type Event = {
   unixtimescheduled: number | null
 }
 
+const waitTime =
+  env.limits.PDS_LIMIT_MAX_CONCURRENT /
+  (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_RATE_INTERVAL_MS)
+
 export default async function labelEmitter() {
   do {
     const events = await db.query.label_actions.findMany({
@@ -23,6 +27,7 @@ export default async function labelEmitter() {
         schema.label_actions.unixtimescheduled,
         Math.floor(Date.now() / 1000),
       ),
+      orderBy: schema.label_actions.id,
       columns: {
         label: true,
         did: true,
@@ -31,7 +36,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
-      limit: Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
+      limit: 2 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
     })
     if (events.length > 0) {
       const [completedEvents, groupedEvents, eventLog] = await processEvents(
@@ -39,9 +44,9 @@ export default async function labelEmitter() {
       )
       await Promise.allSettled([
         logAndCleanup(completedEvents, groupedEvents, eventLog),
-        wait(10000),
+        wait(waitTime),
       ])
-    } else await wait(10000)
+    } else await wait(waitTime)
   } while (true)
 }
 
@@ -58,7 +63,11 @@ async function processEvents(events: Event[]): Promise<
 > {
   const eventLog: { [key: string]: number } = {}
   const completedEvents = new Set<number>()
-  const groupedEvents = groupEvents(events, eventLog)
+  const groupedEvents = groupEvents(
+    events,
+    eventLog,
+    env.limits.PDS_LIMIT_MAX_CONCURRENT,
+  )
 
   await Promise.allSettled(
     Object.keys(groupedEvents).map((did) =>
@@ -69,10 +78,17 @@ async function processEvents(events: Event[]): Promise<
   return [completedEvents, groupedEvents, eventLog]
 }
 
-function groupEvents(events: Event[], eventLog: { [key: string]: number }) {
+function groupEvents(
+  events: Event[],
+  eventLog: { [key: string]: number },
+  limit: number,
+) {
+  let count = 0
   return events.reduce((acc, event) => {
     if (!acc[event.did]) {
+      if (count >= limit) return acc
       acc[event.did] = createEventInput(event)
+      count++
     }
     updateEventInput(acc[event.did], event)
     eventLog[event.label] = (eventLog[event.label] || 0) + 1
