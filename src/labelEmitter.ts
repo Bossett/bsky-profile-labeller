@@ -18,11 +18,12 @@ type Event = {
 
 const waitTime =
   env.limits.PDS_LIMIT_MAX_CONCURRENT /
-  (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_RATE_INTERVAL_MS)
+    (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_RATE_INTERVAL_MS) +
+  1000
 
 export default async function labelEmitter() {
   do {
-    const minWait = wait(waitTime)
+    const minWait = async () => await wait(waitTime)
     const events = await db.query.label_actions.findMany({
       where: lte(
         schema.label_actions.unixtimescheduled,
@@ -37,7 +38,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
-      limit: 10 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
+      limit: 2 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
     })
     if (events.length > 0) {
       const [completedEvents, groupedEvents, eventLog] = await processEvents(
@@ -172,10 +173,10 @@ async function logAndCleanup(
   )
 
   if (completedEvents.size > 0) {
-    logger.debug(`deleting ${completedEvents.size} completed events`)
     await db
       .delete(schema.label_actions)
       .where(inArray(schema.label_actions.id, Array.from(completedEvents)))
+    logger.debug(`deleted ${completedEvents.size} completed events`)
 
     const outputString = `emitted ${completedEvents.size} labels in ${
       Object.keys(groupedEvents).length
