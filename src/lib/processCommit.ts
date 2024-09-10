@@ -238,24 +238,34 @@ export function _processCommit(commit: Commit): Promise<void> {
       // anything in this list 'refreshed' when it re-triggers
       const handlesToReapply = ['newhandle']
 
-      labelOperations.create = labelOperations.create.filter((label) => {
-        if (currentLabels.map((curr) => curr.val).includes(label)) {
-          // If the label is already on the account, only keep it if it's in handlesToReapply
-          return handlesToReapply.includes(label)
-        } else {
-          // If the label is not on the account, keep it
-          return true
-        }
-      })
+      labelOperations.create = labelOperations.create.filter(
+        (label: string) => {
+          if (
+            currentLabels.map((curr) => curr.val).includes(label) &&
+            currentLabels.some((curr) => curr.val === label && !curr.neg)
+          ) {
+            // If the label is already on the account, only keep it if it's in handlesToReapply
+            return handlesToReapply.includes(label)
+          } else {
+            // If the label is not on the account, keep it
+            return true
+          }
+        },
+      )
 
-      labelOperations.remove = labelOperations.remove.filter((label) => {
-        if (currentLabels.map((curr) => curr.val).includes(label)) {
-          // only remove labels that are already on the account
-          return true
-        } else {
-          return false
-        }
-      })
+      labelOperations.remove = labelOperations.remove.filter(
+        (label: string) => {
+          if (
+            currentLabels.map((curr) => curr.val).includes(label) &&
+            currentLabels.some((curr) => curr.val === label && !curr.neg)
+          ) {
+            // only remove labels that are already on the account
+            return true
+          } else {
+            return false
+          }
+        },
+      )
 
       const operations: operationType[] = []
 
