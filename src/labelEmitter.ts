@@ -16,12 +16,16 @@ type Event = {
   unixtimescheduled: number | null
 }
 
-const waitTime =
+const waitTime = Math.max(
   Math.ceil(
     env.limits.PDS_LIMIT_MAX_CONCURRENT /
       (env.limits.PDS_LIMIT_MAX_RATE / env.limits.PDS_LIMIT_RATE_INTERVAL_MS) /
       1000,
-  ) * 1000
+  ) *
+    1000 -
+    1000,
+  0,
+)
 
 export default async function labelEmitter() {
   do {
@@ -40,7 +44,7 @@ export default async function labelEmitter() {
         action: true,
         unixtimescheduled: true,
       },
-      limit: 10 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
+      limit: 2 * Math.floor(env.limits.PDS_LIMIT_MAX_CONCURRENT),
     })
     if (events.length > 0) {
       const [completedEvents, groupedEvents, eventLog] = await processEvents(
