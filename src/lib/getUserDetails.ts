@@ -80,7 +80,7 @@ class UserDetailsFetch extends CachedFetch {
                 Array.isArray(labelsMap[did]) &&
                 labelsMap[did].length > 0
               ) {
-                profilesMap[did].labels = labelsJson.labels
+                profilesMap[did].labels = labelsMap[did]
                 logger.debug(
                   `${did} from ozone ${JSON.stringify(labelsMap[did])}`,
                 )
