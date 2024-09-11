@@ -3,7 +3,7 @@ import logger from '@/helpers/logger.js'
 import emitAccountReport from '@/emitAccountReport.js'
 import { agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
-import db, { schema, lte, inArray } from '@/db/db.js'
+import db, { schema, lte, inArray, sql } from '@/db/db.js'
 import { purgeCacheForDid } from './lib/getUserDetails.js'
 import env from '@/env/env.js'
 
@@ -27,8 +27,55 @@ const waitTime = Math.max(
   0,
 )
 
+async function cleanUpRedundantEvents() {
+  const redundantEvents = await db.execute(sql`
+    DO $$
+    DECLARE
+        deleted_count INTEGER;
+    BEGIN
+        -- Materialize the rows to delete into a temporary table
+      CREATE TEMP TABLE temp_rows_to_delete AS
+      WITH max_rows AS (
+        SELECT MAX(id) AS max_id
+        FROM label_actions
+        GROUP BY did, label, action
+      )
+      SELECT la.id
+      FROM label_actions la
+      LEFT JOIN max_rows mr
+      ON la.id = mr.max_id
+      WHERE mr.max_id IS NULL;
+
+        LOOP
+            DELETE FROM label_actions
+            WHERE id IN (
+                SELECT id FROM temp_rows_to_delete
+                ORDER BY id
+                LIMIT 10000  -- Batch size
+            );
+
+            -- Remove deleted rows from the temporary table
+            DELETE FROM temp_rows_to_delete
+            WHERE id IN (
+                SELECT id
+                FROM temp_rows_to_delete
+                ORDER BY id
+                LIMIT 10000
+            );
+
+            GET DIAGNOSTICS deleted_count = ROW_COUNT;
+            EXIT WHEN deleted_count = 0;  -- Exit loop when no more rows are deleted
+        END LOOP;
+
+        -- Clean up the temp table after operation
+        DROP TABLE temp_rows_to_delete;
+
+    END $$;`)
+}
+
 export default async function labelEmitter() {
   do {
+    await cleanUpRedundantEvents()
     const promArray: Promise<any>[] = [wait(waitTime)]
     const events = await db.query.label_actions.findMany({
       where: lte(

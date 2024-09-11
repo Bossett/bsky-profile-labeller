@@ -30,4 +30,5 @@ export {
   and,
   inArray,
   notInArray,
+  sql,
 } from 'drizzle-orm'
