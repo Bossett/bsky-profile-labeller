@@ -75,8 +75,8 @@ async function cleanUpRedundantEvents() {
 
 export default async function labelEmitter() {
   do {
-    await cleanUpRedundantEvents()
     const promArray: Promise<any>[] = [wait(waitTime)]
+    await cleanUpRedundantEvents()
     const events = await db.query.label_actions.findMany({
       where: lte(
         schema.label_actions.unixtimescheduled,
