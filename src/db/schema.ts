@@ -1,8 +1,8 @@
 import {
   primaryKey,
-  integer,
   pgTable,
-  serial,
+  bigint,
+  bigserial,
   text,
   index,
 } from 'drizzle-orm/pg-core'
@@ -10,12 +10,14 @@ import {
 export const label_actions = pgTable(
   'label_actions',
   {
-    id: serial('id').primaryKey(),
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     label: text('label').notNull(),
     action: text('action').$type<'create' | 'remove'>().notNull(),
     did: text('did').notNull(),
     comment: text('comment'),
-    unixtimescheduled: integer('unixtimescheduled').default(0),
+    unixtimescheduled: bigint('unixtimescheduled', { mode: 'number' }).default(
+      0,
+    ),
   },
   (table) => {
     return {
@@ -25,12 +27,14 @@ export const label_actions = pgTable(
 )
 
 export const subscription_status = pgTable('subscription_status', {
-  id: serial('id').primaryKey(),
-  last_sequence: integer('last_sequence').default(-1).notNull(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  last_sequence: bigint('last_sequence', { mode: 'number' })
+    .default(-1)
+    .notNull(),
 })
 
 export const lists = pgTable('lists', {
-  id: serial('id').primaryKey(),
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
   label: text('label').notNull(),
   listURL: text('listURL').notNull(),
 })
@@ -38,13 +42,13 @@ export const lists = pgTable('lists', {
 export const listItems = pgTable(
   'listItems',
   {
-    id: serial('id').unique(),
+    id: bigserial('id', { mode: 'number' }).unique(),
     did: text('did').notNull(),
-    listURLId: integer('listURLId')
+    listURLId: bigint('listURLId', { mode: 'number' })
       .references(() => lists.id)
       .notNull(),
     listItemURL: text('listItemURL'),
-    unixtimeDeleted: integer('unixtimeDeleted'),
+    unixtimeDeleted: bigint('unixtimeDeleted', { mode: 'number' }),
   },
   (table) => {
     return {

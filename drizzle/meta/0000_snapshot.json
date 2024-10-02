@@ -1,16 +1,16 @@
 {
-  "id": "902de2de-053d-4151-86c0-ddc75f6413a0",
+  "id": "157ecb23-73aa-49bc-a00a-ed19eff0f269",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "5",
-  "dialect": "pg",
+  "version": "7",
+  "dialect": "postgresql",
   "tables": {
-    "label_actions": {
+    "public.label_actions": {
       "name": "label_actions",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "bigserial",
           "primaryKey": true,
           "notNull": true
         },
@@ -40,10 +40,155 @@
         },
         "unixtimescheduled": {
           "name": "unixtimescheduled",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false,
           "default": 0
+        }
+      },
+      "indexes": {
+        "time_idx": {
+          "name": "time_idx",
+          "columns": [
+            {
+              "expression": "unixtimescheduled",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.listItems": {
+      "name": "listItems",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "listURLId": {
+          "name": "listURLId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "listItemURL": {
+          "name": "listItemURL",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unixtimeDeleted": {
+          "name": "unixtimeDeleted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "did_idx": {
+          "name": "did_idx",
+          "columns": [
+            {
+              "expression": "did",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "id_idx": {
+          "name": "id_idx",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "listItems_listURLId_lists_id_fk": {
+          "name": "listItems_listURLId_lists_id_fk",
+          "tableFrom": "listItems",
+          "tableTo": "lists",
+          "columnsFrom": [
+            "listURLId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "listItems_did_listURLId_pk": {
+          "name": "listItems_did_listURLId_pk",
+          "columns": [
+            "did",
+            "listURLId"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "listItems_id_unique": {
+          "name": "listItems_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id"
+          ]
+        }
+      }
+    },
+    "public.lists": {
+      "name": "lists",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "listURL": {
+          "name": "listURL",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
@@ -51,19 +196,19 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "subscription_status": {
+    "public.subscription_status": {
       "name": "subscription_status",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "bigserial",
           "primaryKey": true,
           "notNull": true
         },
         "last_sequence": {
           "name": "last_sequence",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": true,
           "default": -1
@@ -77,6 +222,7 @@
   },
   "enums": {},
   "schemas": {},
+  "sequences": {},
   "_meta": {
     "columns": {},
     "schemas": {},

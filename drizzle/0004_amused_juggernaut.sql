@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS "id_idx" ON "listItems" ("id");

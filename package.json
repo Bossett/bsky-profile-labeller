@@ -36,7 +36,8 @@
     "typescript": "^5.4.2"
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate:pg",
+    "db:up": "drizzle-kit up",
+    "db:generate": "drizzle-kit generate",
     "db:drop-migrations": "drizzle-kit drop",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:update": "yarn db:generate && yarn db:migrate",
