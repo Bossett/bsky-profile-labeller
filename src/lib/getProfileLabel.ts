@@ -41,16 +41,14 @@ export async function getProfileLabel(
     operations.create.push('nonplcdid')
   }
 
-  if (profile.avatar === undefined || profile.avatar === '') {
-    operations.create.push('noavatar')
-  } else {
-    operations.remove.push('noavatar')
-  }
+  const noavatar = profile.avatar === undefined || profile.avatar === ''
+  const nodisplayname =
+    profile.displayName === undefined || profile.displayName === ''
 
-  if (profile.displayName === undefined || profile.displayName === '') {
-    operations.create.push('nodisplayname')
+  if (noavatar && nodisplayname) {
+    operations.create.push('incomplete')
   } else {
-    operations.remove.push('nodisplayname')
+    operations.remove.push('incomplete')
   }
 
   operations.create.filter(
