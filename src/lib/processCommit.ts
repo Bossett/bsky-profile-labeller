@@ -35,13 +35,8 @@ const regexDid = /(did:[^:]+:[^\/]+)/
 export function validateCommit(commit: Commit): { seq?: number; did?: string } {
   if (
     !(
-      (commit.record['$type'] &&
-        ['app.bsky.feed.post', 'app.bsky.actor.profile'].includes(
-          commit.record['$type'],
-        )) ||
-      ['com.atproto.sync.subscribeRepos#identity'].includes(
-        commit.meta['$type'],
-      )
+      commit.record['$type'] &&
+      ['app.bsky.feed.post'].includes(commit.record['$type'])
     )
   ) {
     return {}
@@ -168,9 +163,6 @@ export function _processCommit(commit: Commit): Promise<void> {
               return op
             }),
           )
-          break
-
-        case 'app.bsky.actor.profile':
           break
 
         default:
