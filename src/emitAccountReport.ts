@@ -3,6 +3,8 @@ import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
 import logger from '@/helpers/logger.js'
 import env from '@/env/env.js'
 
+import purgeCacheForDid from '@/lib/getUserDetails.js'
+
 import { pdsLimit } from '@/env/rateLimit.js'
 
 export default async function emitAccountReport(
@@ -16,6 +18,7 @@ export default async function emitAccountReport(
         )}`,
       ),
     )
+
     return true
   }
 
@@ -29,6 +32,11 @@ export default async function emitAccountReport(
     logger.warn(`${e.message} from emitAccountReport failed`)
     logger.warn(`${e}`)
     return false
+  }
+
+  if (eventInput.subject.$type === 'com.atproto.admin.defs#repoRef') {
+    await purgeCacheForDid(`${eventInput.subject.did}`)
+    logger.debug(`Purged cache for ${eventInput.subject.did}`)
   }
 
   return true
