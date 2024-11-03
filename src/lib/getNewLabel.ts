@@ -79,10 +79,14 @@ export async function getNewLabel({
   })
 
   if (authorFeed[0].post.uri === post && isFullFeedHistory) {
+    /* REMOVING NEW ACCOUNT LABEL
+
     if (new Date(authorFeed[0].post.indexedAt).getTime() > watchedFrom)
       // current post is their first ever
       // and happened in the watched period
       createLabels.add('newaccount')
+
+    */
   }
 
   switch (did.startsWith('did:plc:')) {

@@ -51,6 +51,8 @@ class UserDetailsFetch extends CachedFetch {
             {},
           )
 
+          /* REMOVING OZONE LOOKUP FOR CLEANUP
+
           const labelsFetch = await fetch(
             `${
               env.OZONE_URL
@@ -72,9 +74,12 @@ class UserDetailsFetch extends CachedFetch {
               map[label.uri].push(label)
               return map
             }, {})
+            
+          */
 
           for (const did of actorsChunk) {
             if (profilesMap[did]) {
+              /* REMOVING OZONE LOOKUP FOR CLEANUP
               if (
                 labelsMap[did] &&
                 Array.isArray(labelsMap[did]) &&
@@ -85,6 +90,7 @@ class UserDetailsFetch extends CachedFetch {
                   `${did} from ozone ${JSON.stringify(labelsMap[did])}`,
                 )
               }
+              */
 
               this.results.set(did, {
                 data: this.compressData(profilesMap[did]),
