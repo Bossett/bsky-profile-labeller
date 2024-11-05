@@ -51,35 +51,44 @@ class UserDetailsFetch extends CachedFetch {
             {},
           )
 
-          const labelsFetch = await fetch(
-            `${
-              env.OZONE_URL
-            }/xrpc/com.atproto.label.queryLabels?uriPatterns=${actorsChunk.join(
-              '&uriPatterns=',
-            )}`,
-          )
+          const gettingLabelsFromOzone = env.GET_LABELS_FROM_OZONE
 
-          const labelsJson: { labels: ComAtprotoLabelDefs.Label[] } =
-            (await labelsFetch.json()) as {
-              labels: ComAtprotoLabelDefs.Label[]
-            }
+          let labelsMap: { [key: string]: ComAtprotoLabelDefs.Label[] } = {}
 
-          const labelsMap: { [key: string]: ComAtprotoLabelDefs.Label[] } =
-            labelsJson.labels.reduce((map, label) => {
+          if (gettingLabelsFromOzone) {
+            const labelsFetch = await fetch(
+              `${
+                env.OZONE_URL
+              }/xrpc/com.atproto.label.queryLabels?uriPatterns=${actorsChunk.join(
+                '&uriPatterns=',
+              )}`,
+            )
+
+            const labelsJson: { labels: ComAtprotoLabelDefs.Label[] } =
+              (await labelsFetch.json()) as {
+                labels: ComAtprotoLabelDefs.Label[]
+              }
+
+            labelsMap = labelsJson.labels.reduce((map, label) => {
               if (!map[label.uri]) {
                 map[label.uri] = []
               }
               if (!label.neg) map[label.uri].push(label)
               return map
             }, {})
+          }
 
           for (const did of actorsChunk) {
             if (profilesMap[did]) {
               if (
+                gettingLabelsFromOzone &&
                 labelsMap[did] &&
                 Array.isArray(labelsMap[did]) &&
                 labelsMap[did].length > 0
               ) {
+                if (Array.isArray(profilesMap[did].labels)) {
+                }
+
                 profilesMap[did].labels = labelsMap[did]
                 logger.debug(
                   `${did} from ozone ${JSON.stringify(labelsMap[did])}`,
