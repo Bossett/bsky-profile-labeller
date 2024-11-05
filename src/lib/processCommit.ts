@@ -185,7 +185,7 @@ export function _processCommit(commit: Commit): Promise<void> {
           labels: currentLabels,
           labeller: agentDid,
           watchedFrom: handleExpiryThreshold,
-          handlesToExpire: ['newhandle', 'newaccount'],
+          handlesToExpire: ['changedhandle'],
         }).catch((e) => {
           const op: OperationsResult = {
             create: [],
@@ -228,7 +228,7 @@ export function _processCommit(commit: Commit): Promise<void> {
       insertListItemOperation(did, labelOperations)
 
       // anything in this list 'refreshed' when it re-triggers
-      const handlesToReapply = ['newhandle']
+      const handlesToReapply = ['changedhandle']
 
       labelOperations.create = labelOperations.create.filter(
         (label: string) => {

@@ -128,7 +128,7 @@ export async function getNewLabel({
             thisIsEventPost
           ) {
             // this post is the first post after the change
-            createLabels.add('newhandle')
+            createLabels.add('changedhandle')
           }
           postAfterChange = true
         }
@@ -154,7 +154,7 @@ export async function getNewLabel({
       if (thisPost) {
         if (postBeforeChange && !postAfterChange) {
           if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
-            createLabels.add('newhandle')
+            createLabels.add('changedhandle')
         }
 
         const record = thisPost.record as AppBskyFeedPost.Record
