@@ -185,7 +185,7 @@ export function _processCommit(commit: Commit): Promise<void> {
           labels: currentLabels,
           labeller: agentDid,
           watchedFrom: handleExpiryThreshold,
-          handlesToExpire: ['changedhandle'],
+          handlesToExpire: ['changedhandle', 'newhandle', 'newaccount'],
         }).catch((e) => {
           const op: OperationsResult = {
             create: [],
