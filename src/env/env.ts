@@ -11,7 +11,7 @@ const envSchema = z.object({
   SERVICE_ENDPOINT: z.string().url().default('wss://bsky.network'),
   OZONE_URL: z.string().url().default('http://ozone:3000'),
   POSTGRES_DATABASE_URL: z.string().url(),
-  NEWHANDLE_EXPIRY: z.coerce.number().default(2592000),
+  NEWHANDLE_EXPIRY: z.coerce.number().default(1209600),
   GET_LABELS_FROM_OZONE: z.boolean().default(false),
   DANGEROUSLY_EXPOSE_SECRETS: z
     .string()

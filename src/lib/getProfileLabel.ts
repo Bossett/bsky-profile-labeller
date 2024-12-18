@@ -37,6 +37,10 @@ export async function getProfileLabel(
     operations.remove.push('threads')
   }
 
+  if (pds && new URL(pds).hostname === 'atproto.brid.gy') {
+    operations.create.push('nostr')
+  }
+
   if (!profile.did.startsWith('did:plc:')) {
     operations.create.push('nonplcdid')
   }
