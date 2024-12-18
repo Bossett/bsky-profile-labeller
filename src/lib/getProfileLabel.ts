@@ -37,7 +37,7 @@ export async function getProfileLabel(
     operations.remove.push('threads')
   }
 
-  if (pds && new URL(pds).hostname === 'atproto.brid.gy') {
+  if (pds && new URL(pds).hostname === 'eclipse.pub') {
     operations.create.push('nostr')
   }
 
