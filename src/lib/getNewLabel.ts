@@ -4,6 +4,11 @@ import {
   AppBskyFeedPost,
 } from '@atproto/api'
 
+import {
+  isReasonRepost,
+  isReasonPin,
+} from '@atproto/api/dist/client/types/app/bsky/feed/defs.js'
+
 import { OperationsResult } from '@/lib/insertOperations.js'
 import getPost from '@/lib/getPost.js'
 
@@ -49,7 +54,7 @@ export async function getNewLabel({
 
   const data = await getAuthorFeed(did)
 
-  if (data.error) {
+  if ('error' in data) {
     logger.debug(`${data.error} fetching feed for ${did}`)
     return labelResult
   } else {
@@ -63,18 +68,20 @@ export async function getNewLabel({
   if (!authorFeed || authorFeed.length === 0) return labelResult // no posts, no labels
 
   authorFeed = authorFeed.filter(
-    (record) => record.reason?.$type !== 'app.bsky.feed.defs#reasonRepost',
+    (record) => !(isReasonPin(record.reason) || !isReasonRepost(record.reason)),
   )
 
   if (authorFeed.length === 0) return labelResult // we had reposts only, no labels
 
   authorFeed.sort((a, b) => {
-    const a_val = a.reason?.indexedAt
-      ? `${a.reason.indexedAt}`
-      : a.post.indexedAt
-    const b_val = b.reason?.indexedAt
-      ? `${b.reason.indexedAt}`
-      : b.post.indexedAt
+    const a_val =
+      a.reason && 'indexedAt' in a.reason
+        ? `${a.reason.indexedAt}`
+        : a.post.indexedAt
+    const b_val =
+      b.reason && 'indexedAt' in b.reason
+        ? `${b.reason.indexedAt}`
+        : b.post.indexedAt
     return new Date(a_val).getTime() - new Date(b_val).getTime()
   })
 
@@ -141,7 +148,7 @@ export async function getNewLabel({
         try {
           const postData = await getPost(post)
 
-          if (!postData.error) {
+          if (!('error' in postData)) {
             thisPost = postData as AppBskyFeedDefs.PostView
           } else {
             logger.debug(`error finding ${post}: ${postData.error}`)
@@ -177,7 +184,7 @@ export async function getNewLabel({
       }
 
       const data = await getAuthorFeed(did, true)
-      if (!data.error) {
+      if (!('error' in data)) {
         const topOnlyAuthorResult =
           data as AppBskyFeedGetAuthorFeed.OutputSchema
         const topOnlyAuthorFeed = topOnlyAuthorResult.feed

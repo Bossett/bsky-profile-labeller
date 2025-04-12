@@ -1,5 +1,6 @@
 import { agent, agentDid } from '@/lib/bskyAgent.js'
 import { ToolsOzoneModerationEmitEvent } from '@atproto/api'
+import { isRepoRef } from '@atproto/api/dist/client/types/com/atproto/admin/defs.js'
 import logger from '@/helpers/logger.js'
 import env from '@/env/env.js'
 
@@ -26,7 +27,7 @@ export default async function emitAccountReport(
     await pdsLimit(() =>
       agent
         .withProxy('atproto_labeler', agentDid)
-        .api.tools.ozone.moderation.emitEvent(eventInput),
+        .tools.ozone.moderation.emitEvent(eventInput),
     )
   } catch (e) {
     logger.warn(`${e.message} from emitAccountReport failed`)
@@ -34,7 +35,7 @@ export default async function emitAccountReport(
     return false
   }
 
-  if (eventInput.subject.$type === 'com.atproto.admin.defs#repoRef') {
+  if (isRepoRef(eventInput.subject)) {
     await purgeCacheForDid(`${eventInput.subject.did}`)
     logger.debug(`Purged cache for ${eventInput.subject.did}`)
   }

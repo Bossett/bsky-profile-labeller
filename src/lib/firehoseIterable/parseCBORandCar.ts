@@ -52,7 +52,6 @@ export async function parseCBORandCar(commit: Commit) {
   delete processedCommit.ops
 
   processedCommit['seq'] = Number(commit.seq)
-  processedCommit['prev'] = commit.prev?.toString()
   processedCommit['commit'] = commit.commit?.toString()
   processedCommit['blobs'] = commit.blobs?.map((blob) => blob.toString())
 

@@ -113,7 +113,7 @@ export function _processCommit(commit: Commit): Promise<void> {
       const tmpData: AppBskyActorDefs.ProfileViewDetailed | { error: string } =
         await getUserDetails(did)
 
-      if (tmpData.error) {
+      if ('error' in tmpData) {
         if (debug)
           logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
 
