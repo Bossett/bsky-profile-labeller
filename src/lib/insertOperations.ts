@@ -21,11 +21,15 @@ export async function insertOperations(
   force = false,
 ) {
   pendingOperations.push(...operations)
+  logger.debug(
+    `pendingOperations length: ${pendingOperations.length}, MAX_PENDING: ${MAX_PENDING}`,
+  )
 
   if (insertTimeout === null && !force) {
     logger.debug(`new insert called, setting timer...`)
     insertTimeout = setTimeout(async () => {
       try {
+        logger.debug(`timer triggered, forcing insert...`)
         await insertOperations([], true)
       } catch (error) {
         logger.error(`error in scheduled insert: ${error.message}`)
@@ -33,20 +37,29 @@ export async function insertOperations(
     }, PENDING_INTERVAL)
   }
 
-  if (pendingOperations.length < MAX_PENDING && !force) return
+  if (pendingOperations.length < MAX_PENDING && !force) {
+    logger.debug(`not enough operations to insert yet.`)
+    return
+  }
 
   clearTimeout(insertTimeout!)
   insertTimeout = null
 
   const activeOps = pendingOperations.splice(0, pendingOperations.length)
+  logger.debug(`processing ${activeOps.length} operations...`)
 
   if (activeOps.length > 0) {
     try {
       const batchSize = 100
       while (activeOps.length > 0) {
         const batch = activeOps.splice(0, batchSize)
-        await db.insert(schema.label_actions).values(batch)
-        logger.debug(`inserted ${batch.length} operations`)
+        logger.debug(`inserting batch of ${batch.length} operations...`)
+        console.log(batch)
+        const retBatch = await db
+          .insert(schema.label_actions)
+          .values(batch)
+          .returning()
+        logger.debug(`inserted ${retBatch.length} operations.`)
       }
     } catch (error) {
       logger.error(`failed to insert operations: ${error.message}`, {

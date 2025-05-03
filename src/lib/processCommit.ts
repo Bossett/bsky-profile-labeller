@@ -227,7 +227,7 @@ export function _processCommit(commit: Commit): Promise<void> {
         ]
       })
 
-      insertListItemOperation(did, labelOperations)
+      // insertListItemOperation(did, labelOperations)
 
       // anything in this list 'refreshed' when it re-triggers
       const handlesToReapply = ['changedhandle']

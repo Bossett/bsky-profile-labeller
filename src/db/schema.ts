@@ -19,11 +19,7 @@ export const label_actions = pgTable(
       0,
     ),
   },
-  (table) => {
-    return {
-      timeIndex: index('time_idx').on(table.unixtimescheduled),
-    }
-  },
+  (table) => [index('time_idx').on(table.unixtimescheduled)],
 )
 
 export const subscription_status = pgTable('subscription_status', {

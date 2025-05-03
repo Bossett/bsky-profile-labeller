@@ -141,10 +141,10 @@ async function processListChanges() {
     }
   }
 
-  const itemsUpdated = await updateListItemURLs(allItems)
+  // const itemsUpdated = await updateListItemURLs(allItems)
   return {
     creates: creates,
     removals: removals,
-    cleared: itemsUpdated - (creates + removals),
+    cleared: 0, // itemsUpdated - (creates + removals),
   }
 }
