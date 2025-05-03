@@ -54,7 +54,6 @@ export async function insertOperations(
       while (activeOps.length > 0) {
         const batch = activeOps.splice(0, batchSize)
         logger.debug(`inserting batch of ${batch.length} operations...`)
-        console.log(batch)
         const retBatch = await db
           .insert(schema.label_actions)
           .values(batch)
