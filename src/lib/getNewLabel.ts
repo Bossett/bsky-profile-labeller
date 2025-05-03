@@ -176,6 +176,8 @@ export async function getNewLabel({
       if (wantsHandleChange) {
         if (handles[handles.length - 1].createdAt.getTime() >= watchedFrom) {
           createLabels.add('changedhandle')
+        } else {
+          removeLabels.add('changedhandle')
         }
       }
 
