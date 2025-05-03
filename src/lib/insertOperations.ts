@@ -22,12 +22,15 @@ export async function insertOperations(
 ) {
   pendingOperations.push(...operations)
 
-  if (insertTimeout === null) {
+  if (insertTimeout === null && !force) {
     logger.debug(`new insert called, setting timer...`)
-    insertTimeout = setTimeout(
-      async () => await insertOperations([], true),
-      PENDING_INTERVAL,
-    )
+    insertTimeout = setTimeout(async () => {
+      try {
+        await insertOperations([], true)
+      } catch (error) {
+        logger.error(`error in scheduled insert: ${error.message}`)
+      }
+    }, PENDING_INTERVAL)
   }
 
   if (pendingOperations.length < MAX_PENDING && !force) return
@@ -35,20 +38,21 @@ export async function insertOperations(
   clearTimeout(insertTimeout!)
   insertTimeout = null
 
-  const activeOps: operationType[] = []
-
-  while (pendingOperations.length > 0) {
-    const operation = pendingOperations.pop()
-    if (operation) {
-      activeOps.push(operation)
-    }
-  }
+  const activeOps = pendingOperations.splice(0, pendingOperations.length)
 
   if (activeOps.length > 0) {
-    db.insert(schema.label_actions)
-      .values(activeOps)
-      .then(() => {
-        logger.debug(`inserted ${activeOps.length} operations`)
+    try {
+      const batchSize = 100
+      while (activeOps.length > 0) {
+        const batch = activeOps.splice(0, batchSize)
+        await db.insert(schema.label_actions).values(batch)
+        logger.debug(`inserted ${batch.length} operations`)
+      }
+    } catch (error) {
+      logger.error(`failed to insert operations: ${error.message}`, {
+        error,
+        activeOps,
       })
+    }
   }
 }

@@ -112,6 +112,7 @@ export async function getNewLabel({
       let postIntervals: number[] = []
       let hasSeenTopLevel = false
       let hasSeenReply = false
+      let wantsHandleChange = false
 
       let previousPostTime: number | undefined = undefined
 
@@ -135,7 +136,7 @@ export async function getNewLabel({
             thisIsEventPost
           ) {
             // this post is the first post after the change
-            createLabels.add('changedhandle')
+            wantsHandleChange = true
           }
           postAfterChange = true
         }
@@ -161,7 +162,7 @@ export async function getNewLabel({
       if (thisPost) {
         if (postBeforeChange && !postAfterChange) {
           if (new Date(thisPost.indexedAt).getTime() > handleCreationTime)
-            createLabels.add('changedhandle')
+            wantsHandleChange = true
         }
 
         const record = thisPost.record as AppBskyFeedPost.Record
@@ -169,6 +170,12 @@ export async function getNewLabel({
         if (record) {
           if (record.reply) hasSeenReply = true
           else hasSeenTopLevel = true
+        }
+      }
+
+      if (wantsHandleChange) {
+        if (handles[handles.length - 1].createdAt.getTime() >= watchedFrom) {
+          createLabels.add('changedhandle')
         }
       }
 

@@ -115,7 +115,9 @@ export function _processCommit(commit: Commit): Promise<void> {
 
       if ('error' in tmpData) {
         if (debug)
-          logger.debug(`${seq}: error ${tmpData.error} retreiving ${did}`)
+          logger.debug(
+            `${seq}: error ${tmpData.error} retreiving profile ${did}`,
+          )
 
         clearTimeout(failTimeout)
         reject()
